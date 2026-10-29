@@ -368,7 +368,8 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
       `Rencana Pembayaran: ${rupiah(data.payment)}`,
       `Sisa Pelunasan: ${rupiah(data.remaining)}`,
       '',
-      'Mohon konfirmasi ketersediaan slot dan langkah pembayaran sebelum saya transfer. Terima kasih.'
+      'Berikut bukti transfer atas booking saya.',
+      'Mohon konfirmasi penerimaan pembayaran dan jadwal offroad saya. Terima kasih.'
     ].join('\n');
     return `https://wa.me/${ADMIN_WHATSAPP}?text=${encodeURIComponent(message)}`;
   }
