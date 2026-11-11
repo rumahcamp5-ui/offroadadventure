@@ -75,6 +75,7 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
 @media(max-width:600px){.location{padding:55px 0}.location-panel{padding:28px 23px;display:block;border-radius:20px}.location-symbol{width:62px;height:62px;font-size:30px;border-radius:15px;margin-bottom:21px}.location-content h2{font-size:36px}.location-content .btn{width:100%}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
 
+  .field-hint{display:block;margin-top:6px;color:#627869;font-size:12px;line-height:1.5;font-weight:500}
 </style>
   
 </head>
@@ -168,12 +169,12 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
           <label class="field"><span>Nama Pemesan *</span><input id="guestName" name="guestName" type="text" required maxlength="100" autocomplete="name" placeholder="Nama lengkap"></label>
           <label class="field"><span>No WhatsApp Pemesan *</span><input id="guestWhatsapp" name="guestWhatsapp" type="tel" required inputmode="tel" autocomplete="tel" placeholder="08xxxxxxxxxx" pattern="[+0-9\s-]{9,18}"></label>
           <label class="field"><span>Tanggal Offroad *</span><input id="tripDate" name="tripDate" type="date" required></label>
-          <label class="field"><span>Jumlah Pax *</span><select id="guestPax" name="guestPax" required><option value="">Pilih jumlah tamu</option><option value="1">1 orang</option><option value="2">2 orang</option><option value="3">3 orang</option><option value="4">4 orang</option></select></label>
+          <label class="field"><span>Jumlah Unit Offroad *</span><input id="guestUnits" name="guestUnits" type="number" min="1" max="99" step="1" value="1" required inputmode="numeric" aria-describedby="unitInfo"><small id="unitInfo" class="field-hint">Satu paket bisa dipesan untuk beberapa unit. Contoh: 2 unit = 2 mobil dan 2× harga paket. Ketersediaan armada dikonfirmasi admin.</small></label>
           <label class="field full"><span>Pilih Paket *</span><select id="tripPackage" name="tripPackage" required><option value="">Pilih paket offroad</option><option value="express">Kalong Express — Rp700.000</option><option value="classic">Sianok Classic — Rp950.000</option><option value="river">River Adventure — Rp1.200.000</option></select></label>
           <label class="field full"><span>Catatan (optional)</span><textarea id="tripNotes" name="tripNotes" rows="3" maxlength="500" placeholder="Permintaan atau informasi tambahan (boleh kosong)"></textarea></label>
         </div>
         <fieldset class="payment-choice"><legend>Metode Pembayaran *</legend><label class="radio-card"><input type="radio" name="payment" value="DP" checked><span><b>DP 50%</b><small>Bayar setengah harga paket</small></span></label><label class="radio-card"><input type="radio" name="payment" value="LUNAS"><span><b>LUNAS</b><small>Bayar seluruh harga paket</small></span></label></fieldset>
-        <div class="payment-summary" aria-live="polite"><p class="summary-title">Estimasi Pembayaran</p><div><span>Harga Paket</span><strong id="summaryPrice">—</strong></div><div><span id="paymentLabel">Bayar DP 50%</span><strong id="summaryPay">—</strong></div><div class="summary-remaining"><span>Sisa Pelunasan</span><strong id="summaryRemaining">—</strong></div></div>
+        <div class="payment-summary" aria-live="polite"><p class="summary-title">Estimasi Pembayaran</p><div><span id="summaryPriceLabel">Total Harga (1 Unit)</span><strong id="summaryPrice">—</strong></div><div><span id="paymentLabel">Bayar DP 50%</span><strong id="summaryPay">—</strong></div><div class="summary-remaining"><span>Sisa Pelunasan</span><strong id="summaryRemaining">—</strong></div></div>
         <button class="btn btn-gold booking-submit" type="submit">Kirim Booking via WhatsApp <span aria-hidden="true">↗</span></button>
         <p class="form-fineprint">Setelah memilih Lanjut Kirim ke WhatsApp, permintaan booking akan dicatat ke Spreadsheet, lalu WhatsApp admin dibuka. Booking dan pembayaran tetap menunggu konfirmasi admin.</p>
       </form></div>
@@ -220,9 +221,11 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
 
   const form = document.getElementById('bookingForm');
   const packageSelect = document.getElementById('tripPackage');
+  const unitInput = document.getElementById('guestUnits');
   const dateInput = document.getElementById('tripDate');
   const paymentInputs = [...form.querySelectorAll('input[name="payment"]')];
   const summaryPrice = document.getElementById('summaryPrice');
+  const summaryPriceLabel = document.getElementById('summaryPriceLabel');
   const summaryPay = document.getElementById('summaryPay');
   const summaryRemaining = document.getElementById('summaryRemaining');
   const paymentLabel = document.getElementById('paymentLabel');
@@ -239,19 +242,24 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
 
   function calculation() {
     const selected = PACKAGES[packageSelect.value];
-    if (!selected) return null;
+    const units = Number(unitInput.value);
+    if (!selected || !Number.isInteger(units) || units < 1 || units > 99) return null;
     const status = paymentStatus();
-    const payment = status === 'DP' ? selected.price / 2 : selected.price;
-    return { ...selected, status, payment, remaining: selected.price - payment };
+    const price = selected.price * units;
+    const payment = status === 'DP' ? price / 2 : price;
+    return { ...selected, units, unitPrice: selected.price, price, status, payment, remaining: price - payment };
   }
 
   function updateSummary() {
     const data = calculation();
     paymentLabel.textContent = paymentStatus() === 'DP' ? 'Bayar DP 50%' : 'Bayar LUNAS';
+    summaryPriceLabel.textContent = data ? `Total Harga (${data.units} Unit)` : 'Total Harga Paket';
     summaryPrice.textContent = data ? rupiah(data.price) : '—';
     summaryPay.textContent = data ? rupiah(data.payment) : '—';
     summaryRemaining.textContent = data ? rupiah(data.remaining) : '—';
   }
+  unitInput.addEventListener('input', updateSummary);
+  unitInput.addEventListener('change', updateSummary);
   packageSelect.addEventListener('change', updateSummary);
   paymentInputs.forEach(input => input.addEventListener('change', updateSummary));
   updateSummary();
@@ -350,7 +358,7 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
     return { formatted: `${String(day).padStart(2,'0')}/${String(month).padStart(2,'0')}/${year}`, dayName };
   }
 
-  function makeWhatsappUrl(data) {
+  function makeWhatsappUrl(data, receiptId) {
     const { formatted, dayName } = formatDateAndDay(dateInput.value);
     const message = [
       'Halo Admin Offroad Ngarai Kalong, saya mau mengajukan booking:',
@@ -359,14 +367,16 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
       `No WhatsApp Pemesan: ${form.elements.guestWhatsapp.value.trim()}`,
       `Tanggal Offroad: ${formatted}`,
       `Hari: ${dayName}`,
-      `Jumlah Pax: ${form.elements.guestPax.value} orang`,
+      `Jumlah Unit: ${data.units} unit`,
       `Pilih Paket: ${data.name}`,
+      `Harga per Unit: ${rupiah(data.unitPrice)}`,
       `Fasilitas: ${data.facility}`,
       `Catatan: ${form.elements.tripNotes.value.trim() || '-'}`,
       `Status Pembayaran: ${data.status === 'DP' ? 'DP 50%' : 'LUNAS'}`,
-      `Harga Paket: ${rupiah(data.price)}`,
+      `Total Harga (${data.units} Unit): ${rupiah(data.price)}`,
       `Rencana Pembayaran: ${rupiah(data.payment)}`,
       `Sisa Pelunasan: ${rupiah(data.remaining)}`,
+      `ID Booking: ${receiptId}`,
       '',
       'Berikut bukti transfer atas booking saya.',
       'Mohon konfirmasi penerimaan pembayaran dan jadwal offroad saya. Terima kasih.'
@@ -376,19 +386,19 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
 
   function openModal(data) {
     lastFocusedElement = document.activeElement;
-    document.getElementById('modalPackage').textContent = `${data.name} · ${data.status === 'DP' ? 'DP 50%' : 'LUNAS'}`;
+    document.getElementById('modalPackage').textContent = `${data.name} · ${data.units} unit · ${data.status === 'DP' ? 'DP 50%' : 'LUNAS'}`;
     document.getElementById('modalAmount').textContent = rupiah(data.payment);
-    pendingWhatsappUrl = makeWhatsappUrl(data);
     pendingBooking = {
       receiptId: createReceiptId(),
       guestName: form.elements.guestName.value.trim(),
       guestWhatsapp: form.elements.guestWhatsapp.value.trim(),
       tripDate: dateInput.value,
-      guestPax: form.elements.guestPax.value,
+      guestUnits: String(data.units),
       tripPackage: packageSelect.value,
       tripNotes: form.elements.tripNotes.value.trim(),
       payment: data.status
     };
+    pendingWhatsappUrl = makeWhatsappUrl(data, pendingBooking.receiptId);
     setBookingProgress('');
     sendButton.disabled = false;
     sendButton.textContent = 'Lanjut Kirim ke WhatsApp ↗';
@@ -461,8 +471,10 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
     sendButton.textContent = 'Menyimpan booking...';
     setBookingProgress('Mengirim data ke Spreadsheet, mohon tunggu sebentar.');
     try {
-      await saveBookingToSheet(pendingBooking);
-      setBookingProgress('Data berhasil dicatat. Membuka WhatsApp admin...');
+      const saved = await saveBookingToSheet(pendingBooking);
+      setBookingProgress(saved?.duplicate
+        ? 'Booking ini sudah tercatat. Tidak dibuat data ganda. Membuka WhatsApp admin...'
+        : 'Data berhasil dicatat. Membuka WhatsApp admin...');
       sendButton.textContent = 'Buka WhatsApp Lagi ↗';
       window.location.href = pendingWhatsappUrl;
     } catch (error) {
