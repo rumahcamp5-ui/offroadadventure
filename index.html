@@ -76,6 +76,20 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important;animation:none!important}}
 
   .field-hint{display:block;margin-top:6px;color:#627869;font-size:12px;line-height:1.5;font-weight:500}
+
+/* Offroad: paket berbeda untuk tiap unit */
+.unit-package-heading{grid-column:1/-1;margin:7px 0 0;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.unit-package-heading strong{font-size:15px;color:#173729}
+.unit-package-heading small{font-weight:500;font-size:12px;color:#627869}
+.unit-options-grid{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.unit-package-card{border:1px solid #d3e0d3;background:#f8fbf7;border-radius:15px;padding:14px;min-width:0;box-shadow:0 4px 11px #123f2408}
+.unit-package-card label{display:block;font-size:13px;font-weight:850;margin-bottom:9px;color:#1d4a32}
+.unit-package-card select{display:block;width:100%;min-width:0;border:1px solid #cfdccc;background:white;border-radius:10px;min-height:45px;padding:10px 8px;font-size:12px;color:#173729}
+.unit-package-card select:focus{outline:0;border-color:#17734c;box-shadow:0 0 0 3px #1e79502a}
+.unit-package-card .unit-price{display:block;color:#8e6118;font-size:15px;font-weight:900;margin-top:10px}
+.unit-package-card .unit-facility{display:block;color:#617868;font-size:11px;line-height:1.45;font-weight:500;margin-top:5px}
+@media(max-width:600px){.unit-options-grid{grid-template-columns:1fr}.unit-package-heading{align-items:start;flex-direction:column;gap:3px}}
+@media(min-width:601px) and (max-width:1080px){.unit-options-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
   
 </head>
@@ -169,11 +183,12 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
           <label class="field"><span>Nama Pemesan *</span><input id="guestName" name="guestName" type="text" required maxlength="100" autocomplete="name" placeholder="Nama lengkap"></label>
           <label class="field"><span>No WhatsApp Pemesan *</span><input id="guestWhatsapp" name="guestWhatsapp" type="tel" required inputmode="tel" autocomplete="tel" placeholder="08xxxxxxxxxx" pattern="[+0-9\s-]{9,18}"></label>
           <label class="field"><span>Tanggal Offroad *</span><input id="tripDate" name="tripDate" type="date" required></label>
-          <label class="field"><span>Jumlah Unit Offroad *</span><input id="guestUnits" name="guestUnits" type="number" min="1" max="99" step="1" value="1" required inputmode="numeric" aria-describedby="unitInfo"><small id="unitInfo" class="field-hint">Satu paket bisa dipesan untuk beberapa unit. Contoh: 2 unit = 2 mobil dan 2× harga paket. Ketersediaan armada dikonfirmasi admin.</small></label>
-          <label class="field full"><span>Pilih Paket *</span><select id="tripPackage" name="tripPackage" required><option value="">Pilih paket offroad</option><option value="express">Kalong Express — Rp700.000</option><option value="classic">Sianok Classic — Rp950.000</option><option value="river">River Adventure — Rp1.200.000</option></select></label>
+          <label class="field"><span>Jumlah Unit Offroad *</span><input id="guestUnits" name="guestUnits" type="number" min="1" max="99" step="1" value="1" required inputmode="numeric" aria-describedby="unitInfo"><small id="unitInfo" class="field-hint">Pilih jumlah mobil, lalu tentukan paket untuk tiap unit. Paket boleh berbeda, tanpa batas stok per jenis. Ketersediaan armada dikonfirmasi admin.</small></label>
+          <div class="unit-package-heading"><strong>Pilih Paket Setiap Unit *</strong><small>Boleh pilih paket sama atau berbeda</small></div>
+          <div id="unitPackages" class="unit-options-grid" aria-live="polite"></div>
           <label class="field full"><span>Catatan (optional)</span><textarea id="tripNotes" name="tripNotes" rows="3" maxlength="500" placeholder="Permintaan atau informasi tambahan (boleh kosong)"></textarea></label>
         </div>
-        <fieldset class="payment-choice"><legend>Metode Pembayaran *</legend><label class="radio-card"><input type="radio" name="payment" value="DP" checked><span><b>DP 50%</b><small>Bayar setengah harga paket</small></span></label><label class="radio-card"><input type="radio" name="payment" value="LUNAS"><span><b>LUNAS</b><small>Bayar seluruh harga paket</small></span></label></fieldset>
+        <fieldset class="payment-choice"><legend>Metode Pembayaran *</legend><label class="radio-card"><input type="radio" name="payment" value="DP" checked><span><b>DP 50%</b><small>Bayar 50% dari total semua unit</small></span></label><label class="radio-card"><input type="radio" name="payment" value="LUNAS"><span><b>LUNAS</b><small>Bayar total semua unit</small></span></label></fieldset>
         <div class="payment-summary" aria-live="polite"><p class="summary-title">Estimasi Pembayaran</p><div><span id="summaryPriceLabel">Total Harga (1 Unit)</span><strong id="summaryPrice">—</strong></div><div><span id="paymentLabel">Bayar DP 50%</span><strong id="summaryPay">—</strong></div><div class="summary-remaining"><span>Sisa Pelunasan</span><strong id="summaryRemaining">—</strong></div></div>
         <button class="btn btn-gold booking-submit" type="submit">Kirim Booking via WhatsApp <span aria-hidden="true">↗</span></button>
         <p class="form-fineprint">Setelah memilih Lanjut Kirim ke WhatsApp, permintaan booking akan dicatat ke Spreadsheet, lalu WhatsApp admin dibuka. Booking dan pembayaran tetap menunggu konfirmasi admin.</p>
@@ -220,8 +235,8 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
   }));
 
   const form = document.getElementById('bookingForm');
-  const packageSelect = document.getElementById('tripPackage');
   const unitInput = document.getElementById('guestUnits');
+  const unitPackages = document.getElementById('unitPackages');
   const dateInput = document.getElementById('tripDate');
   const paymentInputs = [...form.querySelectorAll('input[name="payment"]')];
   const summaryPrice = document.getElementById('summaryPrice');
@@ -231,45 +246,109 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
   const paymentLabel = document.getElementById('paymentLabel');
 
   function localTodayISO() {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta',
+      year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
+    const value = type => parts.find(part => part.type === type)?.value || '';
+    return `${value('year')}-${value('month')}-${value('day')}`;
   }
   dateInput.min = localTodayISO();
 
   function paymentStatus() {
-    return paymentInputs.find(input => input.checked)?.value ?? 'DP';
+    return paymentInputs.find(input => input.checked)?.value || 'DP';
+  }
+
+  function unitChoices() {
+    return [...unitPackages.querySelectorAll('select[data-unit-index]')].map(select => select.value);
+  }
+
+  function renderUnitCards(preferredPackage = '') {
+    const units = Number(unitInput.value);
+    const previous = unitChoices();
+    if (!Number.isInteger(units) || units < 1 || units > 99) {
+      unitPackages.replaceChildren();
+      updateSummary();
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    for (let i = 0; i < units; i++) {
+      const card = document.createElement('div');
+      card.className = 'unit-package-card';
+      const label = document.createElement('label');
+      const select = document.createElement('select');
+      select.dataset.unitIndex = String(i);
+      select.id = `unitPackage${i + 1}`;
+      select.name = `unitPackage${i + 1}`;
+      select.required = true;
+      label.htmlFor = select.id;
+      label.textContent = `🚙 Unit ${i + 1}`;
+      const choices = [
+        ['', 'Pilih paket'],
+        ['express', 'Kalong Express'],
+        ['classic', 'Sianok Classic'],
+        ['river', 'River Adventure']
+      ];
+      for (const [value, text] of choices) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = text;
+        select.appendChild(option);
+      }
+      // Saat jumlah unit bertambah, pilihan sebelumnya tetap tersimpan.
+      select.value = previous[i] || preferredPackage || '';
+      const price = document.createElement('strong');
+      price.className = 'unit-price';
+      const facility = document.createElement('small');
+      facility.className = 'unit-facility';
+      card.append(label, select, price, facility);
+      fragment.appendChild(card);
+    }
+    unitPackages.replaceChildren(fragment);
+    updateSummary();
   }
 
   function calculation() {
-    const selected = PACKAGES[packageSelect.value];
     const units = Number(unitInput.value);
-    if (!selected || !Number.isInteger(units) || units < 1 || units > 99) return null;
+    const keys = unitChoices();
+    if (!Number.isInteger(units) || units < 1 || units > 99 || keys.length !== units) return null;
+    if (keys.some(key => !Object.prototype.hasOwnProperty.call(PACKAGES, key))) return null;
+    const packages = keys.map((key, index) => ({ key, unit: index + 1, ...PACKAGES[key] }));
     const status = paymentStatus();
-    const price = selected.price * units;
+    const price = packages.reduce((sum, item) => sum + item.price, 0);
     const payment = status === 'DP' ? price / 2 : price;
-    return { ...selected, units, unitPrice: selected.price, price, status, payment, remaining: price - payment };
+    return { units, packages, price, status, payment, remaining: price - payment };
   }
 
   function updateSummary() {
+    const choices = [...unitPackages.querySelectorAll('select[data-unit-index]')];
+    choices.forEach(select => {
+      const selected = PACKAGES[select.value];
+      select.parentNode.querySelector('.unit-price').textContent = selected ? rupiah(selected.price) : 'Belum dipilih';
+      select.parentNode.querySelector('.unit-facility').textContent = selected ? selected.facility : 'Pilih paket untuk unit ini';
+    });
     const data = calculation();
     paymentLabel.textContent = paymentStatus() === 'DP' ? 'Bayar DP 50%' : 'Bayar LUNAS';
-    summaryPriceLabel.textContent = data ? `Total Harga (${data.units} Unit)` : 'Total Harga Paket';
+    summaryPriceLabel.textContent = `Total Harga (${Number(unitInput.value) || 0} Unit)`;
     summaryPrice.textContent = data ? rupiah(data.price) : '—';
     summaryPay.textContent = data ? rupiah(data.payment) : '—';
     summaryRemaining.textContent = data ? rupiah(data.remaining) : '—';
   }
-  unitInput.addEventListener('input', updateSummary);
-  unitInput.addEventListener('change', updateSummary);
-  packageSelect.addEventListener('change', updateSummary);
+
+  unitInput.addEventListener('input', () => renderUnitCards());
+  unitInput.addEventListener('change', () => renderUnitCards());
+  unitPackages.addEventListener('change', event => {
+    if (event.target.matches('select[data-unit-index]')) updateSummary();
+  });
   paymentInputs.forEach(input => input.addEventListener('change', updateSummary));
-  updateSummary();
+  renderUnitCards();
 
   document.querySelectorAll('.choose-package').forEach(button => {
     button.addEventListener('click', () => {
-      packageSelect.value = button.dataset.package;
+      // Pilih Paket dari kartu produk mengisi Unit 1 tanpa mengubah pilihan unit lain.
+      const first = unitPackages.querySelector('select[data-unit-index="0"]');
+      if (first) first.value = button.dataset.package;
       updateSummary();
       document.getElementById('booking').scrollIntoView({ behavior: 'smooth' });
-      setTimeout(() => packageSelect.focus({ preventScroll: true }), 400);
+      setTimeout(() => first?.focus({ preventScroll: true }), 400);
     });
   });
 
@@ -360,6 +439,8 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
 
   function makeWhatsappUrl(data, receiptId) {
     const { formatted, dayName } = formatDateAndDay(dateInput.value);
+    const packageLines = data.packages.map(item =>
+      `Unit ${item.unit}: ${item.name} (${rupiah(item.price)}) | ${item.facility}`);
     const message = [
       'Halo Admin Offroad Ngarai Kalong, saya mau mengajukan booking:',
       '',
@@ -368,12 +449,11 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
       `Tanggal Offroad: ${formatted}`,
       `Hari: ${dayName}`,
       `Jumlah Unit: ${data.units} unit`,
-      `Pilih Paket: ${data.name}`,
-      `Harga per Unit: ${rupiah(data.unitPrice)}`,
-      `Fasilitas: ${data.facility}`,
+      'Rincian Paket:',
+      ...packageLines,
       `Catatan: ${form.elements.tripNotes.value.trim() || '-'}`,
       `Status Pembayaran: ${data.status === 'DP' ? 'DP 50%' : 'LUNAS'}`,
-      `Total Harga (${data.units} Unit): ${rupiah(data.price)}`,
+      `Total Harga: ${rupiah(data.price)}`,
       `Rencana Pembayaran: ${rupiah(data.payment)}`,
       `Sisa Pelunasan: ${rupiah(data.remaining)}`,
       `ID Booking: ${receiptId}`,
@@ -386,18 +466,23 @@ a{text-decoration:none;color:inherit}button,input,select,textarea{font:inherit}b
 
   function openModal(data) {
     lastFocusedElement = document.activeElement;
-    document.getElementById('modalPackage').textContent = `${data.name} · ${data.units} unit · ${data.status === 'DP' ? 'DP 50%' : 'LUNAS'}`;
+    document.getElementById('modalPackage').textContent =
+      `${data.units} unit · ${data.status === 'DP' ? 'DP 50%' : 'LUNAS'} · ${data.packages.map(item => item.name).join(', ')}`;
     document.getElementById('modalAmount').textContent = rupiah(data.payment);
-    pendingBooking = {
-      receiptId: createReceiptId(),
+    const newBooking = {
       guestName: form.elements.guestName.value.trim(),
       guestWhatsapp: form.elements.guestWhatsapp.value.trim(),
       tripDate: dateInput.value,
       guestUnits: String(data.units),
-      tripPackage: packageSelect.value,
+      tripPackages: data.packages.map(item => item.key),
       tripNotes: form.elements.tripNotes.value.trim(),
       payment: data.status
     };
+    // Membuka ulang modal tanpa mengubah data menggunakan ID booking yang sama.
+    const oldFingerprint = pendingBooking ? JSON.stringify({ ...pendingBooking, receiptId: undefined }) : '';
+    const nextFingerprint = JSON.stringify({ ...newBooking, receiptId: undefined });
+    pendingBooking = { receiptId: oldFingerprint === nextFingerprint
+      ? pendingBooking.receiptId : createReceiptId(), ...newBooking };
     pendingWhatsappUrl = makeWhatsappUrl(data, pendingBooking.receiptId);
     setBookingProgress('');
     sendButton.disabled = false;
