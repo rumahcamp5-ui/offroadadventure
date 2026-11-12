@@ -5,11 +5,13 @@ on:
       - 'feature/offroad-shared-membership-*'
     paths:
       - 'membership/**'
+      - 'offroad-admin/**'
       - 'tests/**'
       - '.github/workflows/offroad-membership-check.yml'
   pull_request:
     paths:
       - 'membership/**'
+      - 'offroad-admin/**'
       - 'tests/**'
       - '.github/workflows/offroad-membership-check.yml'
 permissions:
@@ -23,5 +25,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Test Offroad-only signed Membership source adapter
-        run: node --test tests/offroad-membership-adapter.test.mjs
+      - name: Test isolated Offroad admin and signed Membership source
+        run: node --test tests/*.test.mjs
