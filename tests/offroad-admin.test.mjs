@@ -86,6 +86,33 @@ test('staging admin never opens or writes a production spreadsheet by mistaken c
  assert.doesNotMatch(script,/OFFROAD_ADMIN_V7_MODE'\)\s*===\s*'production'/);
 });
 
+test('staging manifest and preflight are read-only, minimal and bound to Offroad dummy data',()=>{
+  const manifest=JSON.parse(readFileSync(new URL('../offroad-admin/appsscript.json',import.meta.url),'utf8'));
+  assert.equal(manifest.runtimeVersion,'V8');
+  assert.equal(manifest.timeZone,'Asia/Jakarta');
+  assert.deepEqual(manifest.oauthScopes,[
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/userinfo.email'
+  ]);
+  assert.equal(Object.hasOwn(manifest,'webapp'),false,'No permissive web-app settings may be baked into manifest');
+  const s=setup();
+  const result=s.ctx.offroadAdminV7Preflight();
+  assert.equal(result.ready,true);
+  assert.equal(result.environment,'STAGING ONLY');
+  assert.equal(result.business,'offroad');
+  assert.equal(result.accessRole,'owner');
+  assert.equal(result.recordsAvailable,1);
+  assert.equal(result.pointsIssued,false);
+  assert.equal(result.financeChanged,false);
+  assert.equal(s.writes.length,0);
+  assert.doesNotMatch(JSON.stringify(result),/0899-PRIVATE|Guest A|1250000|mutasi-bank|OFFROAD_ADMIN_V7_SPREADSHEET_ID/);
+  const outsider=setup({email:'outsider@invalid.example'});
+  assert.throws(()=>outsider.ctx.offroadAdminV7Preflight(),/tidak mendapat izin/);
+  const unsafe=setup();unsafe.props.set('OFFROAD_ADMIN_V7_MODE','production');
+  assert.throws(()=>unsafe.ctx.offroadAdminV7Preflight(),/hanya diizinkan untuk mode staging/);
+  assert.equal(unsafe.writes.length,0);
+});
+
 test('Offroad admin Google identity allowlist is mandatory and never trusts client role',()=>{
  for(const email of ['', 'stranger@offroad.test']){
   const s=setup({email});
