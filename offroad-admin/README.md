@@ -6,6 +6,7 @@
 
 - `Code.gs`: backend Apps Script milik **Offroad**. Wajib login Google dan pemeriksaan daftar email setiap pemanggilan. Akun **Owner** dapat memverifikasi; **Viewer** hanya melihat. Email Google kosong/tidak dikenali selalu ditolak.
 - `OffroadAdminV7.html`: dashboard responsif berisi daftar maksimal 100 booking terbaru, pencarian, filter status, detail paket/unit, dan pemeriksaan pembayaran hanya di lingkungan Offroad. Menggunakan `google.script.run` sehingga rahasia tidak pernah ditaruh di halaman HTML.
+- **Approval Booking (ACC/Reject):** panel baru memisahkan status booking dari status perjalanan. Owner wajib memeriksa transfer masuk, nominal, waktu dan referensi pemeriksaan sebelum ACC; bisa Reject dengan alasan jika uang tidak masuk/bukti invalid. DP yang benar-benar sudah dibayar boleh ACC, tetapi belum dianggap lunas. Tidak ada auto-ACC dari form. Staging menulis hanya R:W dan audit, sementara O:Q tetap khusus trip; baca [aturan approval](./BOOKING-APPROVAL.md).
 - Verifikasi perjalanan menuntut pemeriksaan identitas, bukti kunjungan, status pelunasan & mutasi uang oleh Owner, waktu perjalanan selesai yang nyata, serta referensi bukti internal. Harga Custom diterima selama catatan Offroad menunjukkan lunas dan sisa 0. **Tidak pernah mengganti harga Custom dengan tarif paket standar.**
 - Pembatalan adalah aksi terpisah; tidak mengembalikan uang, menghapus transaksi, atau mencabut poin secara otomatis.
 - Backend membuka Sheet **Formulir Offroad** dengan ID khusus. Mengunci operasi, mencocokkan versi data yang dilihat admin dengan isi terbaru, dan menolak verifikasi jika ada perubahan di tengah pemeriksaan.
@@ -34,6 +35,12 @@
 5. Deploy sebagai **Web app baru**, pilihan **Execute as: User accessing the web app**. Batasi **Who has access** seketat yang tersedia, hanya akun staf yang diizinkan. Share spreadsheet Offroad kepada akun Owner/Viewer yang memang butuh akses. Dalam mode ini, jika Google tidak mengembalikan alamat email aktif, aplikasi otomatis menolak akses; **jangan ubah jadi execute as owner untuk mengakali autentikasi**.
 6. Uji dengan akun Owner dan Viewer yang berbeda. Pastikan akun tidak dikenal ditolak, verifikasi baru hanya mengisi O:Q, tab audit muncul, sedangkan J–N dan laporan keuangan tidak berubah. Uji harga Custom, booking DP, jadwal belum selesai, pembatalan dan perubahan sel saat panel terbuka.
 7. Baru setelah itu lakukan uji adapter Membership terpisah dengan akun/sumber Offroad, secret HMAC di Script Properties yang berbeda, serta endpoint **staging**, bukan produksi. Tidak ada auto trigger, auto-award, atau merge keuangan.
+
+## Perlu diperhatikan sebelum lanjut deploy
+
+- Staging dummy sekarang mempunyai kolom A:W: A:N catatan asal, O:Q verifikasi perjalanan, **R:W status ACC/Reject booking**. Kode belum mengubah Sheet produksi.
+- **BLOCKER keuangan produksi:** Apps Script sinkronisasi keuangan Offroad lama harus diperiksa. Jika nominal dari formulir sudah masuk laporan keuangan sebelum bukti bank/ACC, penambahan dashboard ini **belum mengoreksi transaksi tersebut**. Sebelum produksi, sinkronisasi perlu memakai status R=ACC dan pembayaran bank terverifikasi di sumber Offroad, dengan pelunasan lanjutan DP yang berbeda tanggal. Jangan otomatis mengirim nominal ke Rumah Camp.
+- Kirim WA konfirmasi ACC/Reject, refund, batas waktu status menunggu, dan buka ulang Reject adalah fitur operasional berikutnya; belum otomatis.
 
 ## Kontrol keamanan & batasan yang belum selesai
 
