@@ -24,17 +24,17 @@ function environment({remaining=0,verified=true,completed=true,status='LUNAS',to
     ['OFFROAD_V7_SYNC_TOKEN',token],
     ['OFFROAD_V7_SPREADSHEET_ID',spreadsheetId]
   ]);
-  const row=Array(17).fill('');
+  const row=Array(23).fill('');
   row[2]='Private guest name';row[3]='081234567890';row[6]=2;row[9]=status;row[10]=remaining;
   row[11]=1900000-remaining;row[12]='OFFROAD-BOOK-20261112-001';row[14]=tripStatus||(completed?'SELESAI':'PENDING');
-  row[15]=completed?new Date(Date.now()-600000):'';row[16]=verified?new Date(Date.now()-300000):'';
+  row[15]=completed?new Date(Date.now()-600000):'';row[16]=verified?new Date(Date.now()-300000):'';row[17]='ACC';
   const sent=[];
   const ctx=vm.createContext({
     Date,Number,JSON,String,RegExp,Error,Array,isFinite,
     LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock(){}})},
     PropertiesService:{getScriptProperties:()=>({getProperty:k=>props.get(k)||null,setProperty:(k,v)=>props.set(k,v)})},
     SpreadsheetApp:{openById:id=>{assert.equal(id,spreadsheetId);return {getSheetByName:()=>({getRange:(r,c)=>({
-      getDisplayValues:()=>[['ID Booking','Status Sync Keuangan','Status Perjalanan','Tanggal Selesai','Pembayaran Diverifikasi']],
+      getDisplayValues:()=>c===18?[['Status Persetujuan Booking']]:[['ID Booking','Status Sync Keuangan','Status Perjalanan','Tanggal Selesai','Pembayaran Diverifikasi']],
       getValues:()=>[row]
     })})};}},
     Utilities:{
@@ -75,6 +75,15 @@ test('Offroad adapter fails closed for DP, incomplete visit, blank verified paym
   assert.equal(s.sent.length,0);
  }
  const s=environment();assert.throws(()=>s.ctx.offroadV7SendVerifiedBooking(5));assert.equal(s.sent.length,0);
+});
+
+test('unapproved or rejected Offroad bookings never send completed-trip membership evidence',()=>{
+ for(const status of ['', 'REJECT', 'PENDING']){
+  const s=environment();
+  s.row[17]=status;
+  assert.throws(()=>s.ctx.offroadV7SendVerifiedBooking(6),/Booking belum di-ACC/);
+  assert.equal(s.sent.length,0);
+ }
 });
 
 test('a signed Offroad cancellation is a later revision, blocks stale eligibility and never touches finance',()=>{
