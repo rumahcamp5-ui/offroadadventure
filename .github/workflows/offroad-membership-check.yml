@@ -1,0 +1,27 @@
+name: Offroad Membership bridge integrity
+on:
+  push:
+    branches:
+      - 'feature/offroad-shared-membership-*'
+    paths:
+      - 'membership/**'
+      - 'tests/**'
+      - '.github/workflows/offroad-membership-check.yml'
+  pull_request:
+    paths:
+      - 'membership/**'
+      - 'tests/**'
+      - '.github/workflows/offroad-membership-check.yml'
+permissions:
+  contents: read
+jobs:
+  bridge-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test Offroad-only signed Membership source adapter
+        run: node --test tests/offroad-membership-adapter.test.mjs
