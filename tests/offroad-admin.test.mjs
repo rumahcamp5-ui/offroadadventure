@@ -11,15 +11,17 @@ const STAGING_TITLE='[STAGING] OFFROAD V7 ADMIN TEST - DATA SIMULASI';
 const STAGING_MARKER='STAGING OFFROAD V7 • DATA SIMULASI • JANGAN GUNAKAN UNTUK BOOKING ASLI';
 const HEADERS=['No','Timestamp','Nama Pemesan','No WhatsApp Pemesan','Tanggal Offroad','Hari',
  'Jumlah Unit','Pilih Paket ','Catatan (optional)','Lunas/DP','Sisa Pelunasan','Jumlah Uang',
- 'ID Booking','Status Sync Keuangan','Status Perjalanan','Tanggal Selesai','Pembayaran Diverifikasi'];
+ 'ID Booking','Status Sync Keuangan','Status Perjalanan','Tanggal Selesai','Pembayaran Diverifikasi',
+ 'Status Persetujuan Booking','Waktu Keputusan Booking','Admin Keputusan Booking','Alasan Reject Booking',
+ 'Jumlah Transfer Terverifikasi','Waktu Transfer Terverifikasi'];
 
-function setup({email='owner@offroad.test',payment='LUNAS',balance=0,paid=1250000,status='',auditExists=false}={}){
+function setup({email='owner@offroad.test',payment='LUNAS',balance=0,paid=1250000,status='',auditExists=false,bookingApproval='ACC'}={}){
  const headers=HEADERS.slice();
  const row=[1,new Date('2026-11-10T08:00:00Z'),'Guest A','0899-PRIVATE',
    new Date('2026-11-11T07:00:00Z'),'Rabu',2,'Sianok Classic + Kalong Express',
    'private notes',payment,balance,paid,'OFFROAD-BOOKING-20261111-001',
-   'SYNCED',status,'',''];
- const cells=[...Array.from({length:5},()=>Array(17).fill('')),row];
+   'SYNCED',status,'','',bookingApproval,'','','','',''];
+ const cells=[...Array.from({length:5},()=>Array(23).fill('')),row];
  cells[0][0]=STAGING_MARKER;
  cells[4]=headers;
  const writes=[],auditRows=[],props=new Map([
@@ -197,4 +199,79 @@ test('dashboard renders server-owned Offroad records without third-party backend
  assert.match(script,/getRange\(input\.row,15,1,3\)\.setValues/);
  assert.match(script,/Session\.getActiveUser\(\)\.getEmail\(\)/);
  assert.match(script,/OFFROAD_ADMIN_V7_OWNER_EMAILS/);
+});
+
+test('pending DP can be ACC only after confirmed matching bank transfer, writing R:W and audit only',()=>{
+ const s=setup({bookingApproval:'',payment:'DP',paid:300000,balance:500000});
+ const pending=s.ctx.offroadAdminV7ListApprovals();
+ assert.equal(pending.rows.length,1);
+ assert.equal(pending.rows[0].approval,'MENUNGGU VERIFIKASI');
+ const item=pending.rows[0],original=s.row.slice();
+ const payload={action:'ACC',row:6,bookingId:item.bookingId,expectedVersion:item.version,
+   evidenceReference:'bank-staging-mutasi-11nov2026',confirmedIdentity:true,
+   confirmedBankReview:true,bankCreditConfirmed:true,
+   verifiedAmount:300000,verifiedAt:Math.floor(Date.now()/1000)-300};
+ const outcome=s.ctx.offroadAdminV7ReviewBooking(payload);
+ assert.equal(outcome.bookingStatus,'ACC');
+ assert.equal(outcome.financeChanged,false);assert.equal(outcome.pointsIssued,false);
+ for(let i=0;i<17;i++)assert.deepEqual(s.row[i],original[i],'A:Q must stay intact, cell '+i);
+ assert.equal(s.row[17],'ACC');assert.equal(s.row[19],'');assert.equal(s.row[21],300000);
+ assert.ok(s.row[18] instanceof Date);assert.ok(s.row[22] instanceof Date);
+ const change=s.writes.filter(w=>w.tab==='booking');
+ assert.equal(change.length,1);assert.equal(change[0].col,18);assert.equal(change[0].numCols,6);
+ assert.equal(s.auditRows.length,3);
+ assert.doesNotMatch(JSON.stringify(s.auditRows),/bank-staging-mutasi-11nov2026|300000|0899-PRIVATE|Guest A/);
+ assert.throws(()=>s.ctx.offroadAdminV7ReviewBooking(payload),/berubah|sudah diputuskan/);
+});
+test('reject booking without verified transfer records reason, never refunds or writes finance',()=>{
+ const s=setup({bookingApproval:'',payment:'LUNAS',paid:950000,balance:0});
+ const original=s.row.slice(),item=s.ctx.offroadAdminV7ListApprovals().rows[0];
+ const res=s.ctx.offroadAdminV7ReviewBooking({row:6,bookingId:item.bookingId,
+  expectedVersion:item.version,action:'REJECT',
+  evidenceReference:'no-credit-found-staging-11nov',
+  reason:'Transfer tidak ditemukan di rekening Offroad.',
+  confirmedIdentity:true,confirmedBankReview:true,
+  bankCreditConfirmed:false,verifiedAmount:0});
+ assert.equal(res.bookingStatus,'REJECT');assert.equal(res.financeChanged,false);
+ for(let i=0;i<17;i++)assert.deepEqual(s.row[i],original[i]);
+ assert.equal(s.row[17],'REJECT');assert.match(s.row[20],/tidak ditemukan/);
+ assert.equal(s.row[21],'');assert.equal(s.row[22],'');
+ assert.equal(s.writes.filter(w=>w.tab==='booking').length,1);
+});
+test('ACC blocked for unconfirmed/incorrect bank credit, stale row, and unauthorized viewer',()=>{
+ const s=setup({bookingApproval:'',payment:'LUNAS',paid:700000,balance:0});
+ const item=s.ctx.offroadAdminV7ListApprovals().rows[0];
+ const base={row:6,bookingId:item.bookingId,expectedVersion:item.version,
+  action:'ACC',evidenceReference:'verified-mutation-staging-2026',
+  confirmedIdentity:true,confirmedBankReview:true,bankCreditConfirmed:true,
+  verifiedAmount:700000,verifiedAt:Math.floor(Date.now()/1000)-400};
+ assert.throws(()=>s.ctx.offroadAdminV7ReviewBooking({...base,bankCreditConfirmed:false}),/tanpa bukti/);
+ assert.throws(()=>s.ctx.offroadAdminV7ReviewBooking({...base,verifiedAmount:650000}),/tidak cocok/);
+ assert.throws(()=>s.ctx.offroadAdminV7ReviewBooking({...base,confirmedBankReview:false}),/mutasi rekening/);
+ assert.throws(()=>s.ctx.offroadAdminV7ReviewBooking({...base,verifiedAt:Math.floor(Date.now()/1000)+10000}),/Waktu transfer/);
+ assert.throws(()=>s.ctx.offroadAdminV7ReviewBooking({...base,action:'REJECT',
+   bankCreditConfirmed:true,reason:'Ada uang masuk'}),/jangan Reject/);
+ s.row[11]=650000;
+ assert.throws(()=>s.ctx.offroadAdminV7ReviewBooking(base),/berubah/);
+ assert.equal(s.writes.length,0);
+ const viewer=setup({email:'viewer@offroad.test',bookingApproval:''});
+ const v=viewer.ctx.offroadAdminV7ListApprovals().rows[0];
+ assert.throws(()=>viewer.ctx.offroadAdminV7ReviewBooking({...base,bookingId:v.bookingId,expectedVersion:v.version}),/Hanya Owner/);
+ assert.equal(viewer.writes.length,0);
+});
+test('completed Offroad trip blocked without ACC booking, even when declared LUNAS',()=>{
+ const s=setup({bookingApproval:'',payment:'LUNAS',paid:1250000,balance:0});
+ assert.throws(()=>s.ctx.offroadAdminV7Verify(request(s)),/Booking belum ACC/);
+ assert.equal(s.writes.length,0);
+});
+test('approval UI provides manual ACC and Reject, never auto-approves from guest payment choice',()=>{
+ assert.match(view,/id="approvalRows"/);
+ assert.match(view,/id="approvalDetail"/);
+ assert.match(view,/offroadAdminV7ListApprovals\(\)/);
+ assert.match(view,/offroadAdminV7ReviewBooking\(/);
+ assert.match(view,/Uang benar-benar masuk rekening/);
+ assert.match(view,/Reject Booking/);
+ assert.doesNotMatch(view,/innerHTML|OFFROAD_V7_SYNC_TOKEN|Authorization:\s*Bearer/);
+ assert.match(script,/getRange\(input\.row,18,1,6\)\.setValues/);
+ assert.doesNotMatch(script,/\/api\/v7-admin\/offroad-claims/);
 });
