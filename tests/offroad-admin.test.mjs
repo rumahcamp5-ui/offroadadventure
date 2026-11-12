@@ -48,6 +48,7 @@ function setup({email='owner@offroad.test',payment='LUNAS',balance=0,paid=125000
   PropertiesService:{getScriptProperties:()=>({getProperty:k=>props.get(k)||null})},
   SpreadsheetApp:{openById:id=>{assert.equal(id,SPREADSHEET_ID);return workbook;}},
   Utilities:{DigestAlgorithm:{SHA_256:'sha256'},Charset:{UTF_8:'utf-8'},
+    formatDate:(date,zone,format)=>{assert.equal(zone,'Asia/Jakarta');assert.equal(format,'yyyy-MM-dd');return date.toISOString().slice(0,10);},
     computeDigest:(algo,value)=>[...createHash('sha256').update(value).digest()]},
   LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>lockReleased++})},
   HtmlService:{
@@ -119,6 +120,7 @@ test('DP, unpaid, bad proof, stale version and mismatched booking cannot be appr
  assert.throws(()=>s.ctx.offroadAdminV7Verify({...r,evidenceReference:'short'}),/Referensi bukti/);
  assert.throws(()=>s.ctx.offroadAdminV7Verify({...r,confirmedTrip:false}),/harus diperiksa/);
  assert.throws(()=>s.ctx.offroadAdminV7Verify({...r,completedAt:Math.floor(Date.now()/1000)+5000}),/Waktu perjalanan/);
+ assert.throws(()=>s.ctx.offroadAdminV7Verify({...r,completedAt:Math.floor(new Date('2026-11-10T05:00:00Z').getTime()/1000)}),/sebelum tanggal Offroad/);
  assert.throws(()=>s.ctx.offroadAdminV7Verify({...r,bookingId:'OFFROAD-OTHER'}),/telah berubah/);
  s.row[11]=1000000;
  assert.throws(()=>s.ctx.offroadAdminV7Verify(r),/telah berubah/);
