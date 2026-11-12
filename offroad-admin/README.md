@@ -13,13 +13,22 @@
 - Setiap keputusan menambah catatan di tab audit **OFFROAD V7 AUDIT** dalam spreadsheet Offroad sendiri (dibuat saat keputusan pertama). Referensi bukti disimpan sebagai SHA-256, bukan mutasi atau nomor rekening mentah.
 - Pengesahan di dashboard **belum mengirim status poin otomatis**. Adapter `../membership/OffroadMembershipSourceV7.gs` merupakan langkah manual terpisah di staging. Bahkan pengiriman event tersebut hanya menghasilkan observasi, **bukan penerbitan poin**.
 
+## Spreadsheet staging yang sudah disiapkan (12 November 2026)
+
+- File Offroad terpisah: [OFFROAD V7 ADMIN TEST - DATA SIMULASI](https://docs.google.com/spreadsheets/d/1jTrkBvM4V2mHIA4KeLyixGcJgV4ASxjy6jJgyFku8Po/edit). Dibuat di akun Google Drive **Offroad**, bukan Rumah Camp.
+- Memuat tab `Formulir Offroad` dengan **header A:Q pada baris 5** dan empat booking **fiktif** di baris 6–9: LUNAS, DP, harga Custom, dan skenario pembatalan. Tidak ada nama/nomor WhatsApp tamu asli. Jangan sambungkan ke sistem keuangan live.
+- Kode `Code.gs` versi branch ini **dikunci untuk staging saja**. `OFFROAD_ADMIN_V7_MODE=staging` wajib; ID spreadsheet harus persis ID file simulasi di atas, judul harus `[STAGING] OFFROAD V7 ADMIN TEST - DATA SIMULASI` dan sel A1 harus berisi penanda dummy tetap. Mode produksi, ID live, atau salinan file lain langsung ditolak **sebelum membaca booking atau menulis O:Q**.
+- Tes staging ini **belum menjadi web app**. Belum ada Apps Script project baru, URL `/exec`, konfigurasi email Owner/Viewer, atau deployment Google yang dibuat. GitHub Actions hanya menguji kode menggunakan simulasi.
+- Agar berjalan sebagai web app di staging, Owner harus membuat project Apps Script baru khusus Offroad Admin dan mengatur `OFFROAD_ADMIN_V7_MODE=staging`, `OFFROAD_ADMIN_V7_SPREADSHEET_ID` sesuai ID file staging, lalu Owner/Viewer email allowlist. Jangan menambahkan project ini ke Apps Script booking live.
+
 ## Cara pemasangan di staging nanti (jangan eksekusi tanpa persetujuan)
 
 1. **Buat project Google Apps Script baru khusus Admin Offroad**, bukan project penerima booking yang sudah ada. Ini penting karena dashboard membutuhkan `doGet()` sendiri; `doGet` lama untuk JSONP booking tidak boleh ditimpa.
 2. Buat file `Code.gs` dan HTML bernama tepat `OffroadAdminV7` dari folder ini. Jangan paste ke Apps Script Rumah Camp atau halaman GitHub Pages publik.
 3. Di Offroad Spreadsheet, pertahankan header baris 5 A:N. Perluas **hanya** dengan O `Status Perjalanan`, P `Tanggal Selesai`, Q `Pembayaran Diverifikasi`. Isi O/P/Q untuk booking nyata oleh staf Offroad yang berwenang. Jangan memindahkan isi kolom lama.
 4. Di **Script Properties project Admin Offroad yang baru**, isi:
-   - `OFFROAD_ADMIN_V7_SPREADSHEET_ID` = ID spreadsheet booking **Offroad**, bukan Rumah Camp.
+   - `OFFROAD_ADMIN_V7_MODE` = `staging` (wajib dalam versi pengembangan ini).
+   - `OFFROAD_ADMIN_V7_SPREADSHEET_ID` = ID **file simulasi Offroad staging di atas**, bukan spreadsheet booking live ataupun Rumah Camp.
    - `OFFROAD_ADMIN_V7_OWNER_EMAILS` = email akun Google Owner Offroad, bisa lebih dari satu dipisahkan koma.
    - `OFFROAD_ADMIN_V7_VIEWER_EMAILS` = email viewer opsional; viewer tidak bisa mengubah data.
 5. Deploy sebagai **Web app baru**, pilihan **Execute as: User accessing the web app**. Batasi **Who has access** seketat yang tersedia, hanya akun staf yang diizinkan. Share spreadsheet Offroad kepada akun Owner/Viewer yang memang butuh akses. Dalam mode ini, jika Google tidak mengembalikan alamat email aktif, aplikasi otomatis menolak akses; **jangan ubah jadi execute as owner untuk mengakali autentikasi**.
