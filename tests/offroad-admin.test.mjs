@@ -215,7 +215,7 @@ test('pending DP can be ACC only after confirmed matching bank transfer, writing
  assert.equal(outcome.bookingStatus,'ACC');
  assert.equal(outcome.financeChanged,false);assert.equal(outcome.pointsIssued,false);
  for(let i=0;i<17;i++)assert.deepEqual(s.row[i],original[i],'A:Q must stay intact, cell '+i);
- assert.equal(s.row[17],'ACC');assert.equal(s.row[19],'');assert.equal(s.row[21],300000);
+ assert.equal(s.row[17],'ACC');assert.equal(s.row[19],'owner@offroad.test');assert.equal(s.row[20],'');assert.equal(s.row[21],300000);
  assert.ok(s.row[18] instanceof Date);assert.ok(s.row[22] instanceof Date);
  const change=s.writes.filter(w=>w.tab==='booking');
  assert.equal(change.length,1);assert.equal(change[0].col,18);assert.equal(change[0].numCols,6);
