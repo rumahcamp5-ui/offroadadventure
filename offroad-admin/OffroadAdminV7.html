@@ -72,6 +72,24 @@ tr.active{background:#f1f5ef}
 footer{margin-top:28px;color:var(--muted);font-size:12px}
 @media(max-width:1150px){.workspace{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.shell{display:block}aside{padding:15px 20px;flex-direction:row;align-items:center;gap:14px}.navLabel,.navItem,.asideFoot{display:none}main{padding:24px 14px 50px}.stat{padding:14px}.stat strong{font-size:26px}.panelHead{padding:18px}.toolbar{padding:14px}.detail{padding:18px}.detail dl{grid-template-columns:1fr 1fr}.tableWrap{font-size:12px}td,th{padding:12px}}
+
+.approvalArea{margin:27px 0 22px;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,1fr);gap:18px}
+.approvalTitle{display:flex;flex-direction:column;gap:5px}
+.approvalTitle small{color:var(--muted)}
+.approvalTools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:13px 20px;border-bottom:1px solid var(--line)}
+.approvalTools input{flex:2 1 145px}.approvalTools select{flex:1 1 125px}
+.approvalGrid{display:grid;gap:14px;padding:20px}
+.approvalGrid dl{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0}
+.approvalGrid dt{color:var(--muted);font-size:11px}.approvalGrid dd{font-weight:700;margin:3px 0 0;overflow-wrap:anywhere}
+.approvalForm{display:grid;gap:12px}
+.approvalForm label{font-size:12px;font-weight:750;display:grid;gap:6px}
+.approvalForm label.check{display:flex;align-items:flex-start;gap:8px;font-weight:500}
+.approvalForm input[type=checkbox]{accent-color:var(--pine)}
+.approvalForm textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;resize:vertical;min-height:75px}
+.approvalForm button{flex:1 1 auto}
+.status.accept{background:#e2f3e9;color:#256c48}
+.status.reject{background:#fde8e6;color:#a3433b}
+@media(max-width:1150px){.approvalArea{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -83,6 +101,19 @@ footer{margin-top:28px;color:var(--muted);font-size:12px}
 </aside>
 <main>
   <header class="top"><div><p class="eyebrow">Operations / Verifikasi</p><h1>Perjalanan Offroad</h1><p class="sub">Periksa perjalanan dan bukti pelunasan dari catatan Offroad sebelum mengirim kelayakan poin Membership. Belum ada poin yang otomatis diterbitkan.</p></div><span id="role" class="tag">Memeriksa izin…</span></header>
+
+  <div class="approvalArea">
+    <section class="panel" aria-label="Approval Booking Offroad">
+      <div class="panelHead"><div class="approvalTitle"><h2>Approval Booking</h2><small>Konfirmasi transfer masuk sebelum menerima pesanan</small></div><button id="approvalReload" type="button" class="btn alt">Muat ulang</button></div>
+      <div class="approvalTools"><input id="approvalSearch" type="search" aria-label="Cari booking untuk ACC dan Reject" placeholder="Cari ID booking, nama atau paket"><select id="approvalFilter" aria-label="Filter persetujuan"><option value="all">Semua booking</option><option value="pending">Menunggu verifikasi</option><option value="ACC">ACC</option><option value="REJECT">Reject</option></select></div>
+      <div class="tableWrap"><table><thead><tr><th>Booking</th><th>Pembayaran diajukan</th><th>Persetujuan</th><th></th></tr></thead><tbody id="approvalRows"></tbody></table></div>
+      <p id="approvalEmpty" class="loading" hidden>Belum ada booking untuk filter ini.</p>
+    </section>
+    <section class="panel" aria-label="Keputusan booking">
+      <div class="panelHead"><div class="approvalTitle"><h2>Periksa Transfer</h2><small>Hanya Owner Offroad yang dapat memutuskan</small></div><span class="tag">Bank wajib dicek</span></div>
+      <div id="approvalDetail" class="detailEmpty">Pilih booking untuk memverifikasi transfer dan menentukan ACC atau Reject.</div>
+    </section>
+  </div>
   <section class="stats" aria-label="Ringkasan">
     <div class="stat"><small>Booking terbaru</small><strong id="statAll">–</strong></div>
     <div class="stat"><small>Belum diverifikasi</small><strong id="statPending">–</strong></div>
@@ -210,6 +241,117 @@ function detail(row){
 }
 $('reload').addEventListener('click',refresh);$('search').addEventListener('input',render);$('filter').addEventListener('change',render);
 refresh();
+})();
+</script>
+
+<script>
+(function(){
+'use strict';
+var data=[],chosen=null,role='viewer';
+var $=function(id){return document.getElementById(id);};
+function el(parent,tag,text,cls){
+  var n=document.createElement(tag);
+  if(text!==null&&text!==undefined)n.textContent=String(text);
+  if(cls)n.className=cls;
+  parent.appendChild(n);return n;
+}
+function rupiah(n){return Number.isSafeInteger(n)?'Rp'+new Intl.NumberFormat('id-ID').format(n):'Belum diverifikasi';}
+function state(row){return row.approval==='ACC'?'ACC':row.approval==='REJECT'?'REJECT':'MENUNGGU';}
+function err(error){$('message').textContent=error?.message||'Gagal membuka approval Offroad. Periksa login dan Sheet simulasi.';}
+function load(){
+  $('message').textContent='Memuat approval dari Sheet simulasi Offroad…';
+  google.script.run.withSuccessHandler(function(result){
+    if(!result||result.business!=='offroad')return err(new Error('Sumber bukan Offroad.'));
+    role=result.role;data=Array.isArray(result.rows)?result.rows:[];
+    chosen=chosen?data.find(function(x){return x.bookingId===chosen.bookingId;}):null;
+    render();if(chosen)show(chosen);
+    $('message').textContent='Daftar persetujuan Offroad terbaru telah dimuat. Tidak ada transaksi yang berubah.';
+  }).withFailureHandler(err).offroadAdminV7ListApprovals();
+}
+function render(){
+  var body=$('approvalRows');body.replaceChildren();
+  var q=$('approvalSearch').value.trim().toLowerCase(),f=$('approvalFilter').value;
+  var rows=data.filter(function(x){
+    var s=state(x);
+    return (f==='all'||(f==='pending'&&s==='MENUNGGU')||f===s)&&
+       (!q||[x.bookingId,x.name,x.package].some(function(v){return String(v||'').toLowerCase().includes(q);}));
+  });
+  rows.forEach(function(row){
+    var tr=el(body,'tr');if(chosen&&chosen.bookingId===row.bookingId)tr.className='active';
+    var a=el(tr,'td');el(a,'strong',row.name);el(a,'small',row.bookingId);
+    var b=el(tr,'td');el(b,'strong',row.declaredPayment);el(b,'small','Diajukan: '+rupiah(row.declaredPaid));
+    var s=state(row),d=el(tr,'td');el(d,'span',s==='MENUNGGU'?'Menunggu verifikasi':s,'status '+(s==='ACC'?'accept':s==='REJECT'?'reject':''));
+    var t=el(tr,'td'),button=el(t,'button','Periksa','btn alt');button.type='button';button.addEventListener('click',function(){chosen=row;render();show(row);});
+  });
+  $('approvalEmpty').hidden=rows.length!==0;
+}
+function show(row){
+  var parent=$('approvalDetail');parent.replaceChildren();parent.className='approvalGrid';
+  el(parent,'h3',row.bookingId);
+  var dl=el(parent,'dl');
+  [['Nama',row.name],['Tanggal',row.tripDate],['Paket',row.package],['Unit',row.units],
+    ['Pilihan di formulir',row.declaredPayment],['Nominal diajukan',rupiah(row.declaredPaid)],
+    ['Sisa pada formulir',rupiah(row.declaredRemaining)],
+    ['Status ACC/Reject',state(row)==='MENUNGGU'?'Menunggu':state(row)]].forEach(function(p){
+      var cell=el(dl,'div');el(cell,'dt',p[0]);el(cell,'dd',p[1]);
+  });
+  el(parent,'div','DP/LUNAS adalah pilihan pelanggan, bukan bukti transfer. Cek mutasi rekening Offroad sendiri. ACC booking tidak mengubah keuangan dan tidak menerbitkan poin.','notice');
+  if(role!=='owner'){el(parent,'p','Akun Viewer hanya bisa membaca. Keputusan perlu Owner Offroad.');return;}
+  if(state(row)!=='MENUNGGU'){el(parent,'p','Booking sudah diputuskan. Revisi memerlukan prosedur koreksi dengan audit.');return;}
+  var form=el(parent,'form');form.className='approvalForm';
+  var refLabel=el(form,'label','Referensi pengecekan rekening atau bukti internal');
+  var ref=el(refLabel,'input');ref.type='text';ref.minLength=12;ref.maxLength=160;ref.required=true;ref.placeholder='Contoh: MUTASI-OFFROAD-20261112-01';
+  var amountLabel=el(form,'label','Nominal yang benar-benar masuk rekening (Rp)');
+  var amount=el(amountLabel,'input');amount.type='number';amount.min='1';amount.step='1';amount.inputMode='numeric';
+  var timeLabel=el(form,'label','Waktu transaksi di rekening');
+  var when=el(timeLabel,'input');when.type='datetime-local';
+  var reasonLabel=el(form,'label','Alasan Reject (jika tidak ada transfer / bukti tidak sah)');
+  var reason=el(reasonLabel,'textarea');reason.maxLength=220;reason.placeholder='Alasan jelas untuk catatan audit internal';
+  var first=el(form,'label',null,'check'),identity=el(first,'input');identity.type='checkbox';el(first,'span','Nama dan ID booking cocok dengan bukti');
+  var second=el(form,'label',null,'check'),bank=el(second,'input');bank.type='checkbox';el(second,'span','Sudah cek mutasi rekening Offroad, bukan cuma screenshot transfer');
+  var third=el(form,'label',null,'check'),credited=el(third,'input');credited.type='checkbox';el(third,'span','Uang benar-benar masuk rekening dan nominalnya sesuai (wajib untuk ACC)');
+  var actions=el(form,'div',null,'actionRow');
+  var approve=el(actions,'button','ACC Booking','btn');approve.type='submit';
+  var reject=el(actions,'button','Reject Booking','btn danger');reject.type='button';
+  var busy=false;
+  function decision(action){
+    if(busy)return;
+    if(!identity.checked||!bank.checked||ref.value.trim().length<12){
+      err(new Error('Cek identitas dan mutasi rekening, lalu isi referensi bukti.'));return;
+    }
+    if(action==='ACC'&&(!credited.checked||!when.value||!amount.value||
+       Number(amount.value)!==row.declaredPaid)){
+      err(new Error('ACC hanya boleh jika uang masuk dan nominalnya cocok dengan pembayaran yang diajukan.'));return;
+    }
+    if(action==='REJECT'&&credited.checked){
+      err(new Error('Jika uang sudah masuk, jangan Reject sebelum rekonsiliasi.'));return;
+    }
+    if(action==='REJECT'&&reason.value.trim().length<8){
+      err(new Error('Isi alasan Reject minimal 8 karakter.'));return;
+    }
+    if(!window.confirm(action==='ACC'?'Pastikan uang SUDAH MASUK rekening Offroad dan cocok. ACC hanya di Sheet staging.':
+      'Yakin menolak booking? Tidak ada refund otomatis; alasan tersimpan di staging.'))return;
+    busy=true;approve.disabled=true;reject.disabled=true;
+    var epoch=action==='ACC'?Math.floor(new Date(when.value).getTime()/1000):null;
+    google.script.run.withSuccessHandler(function(result){
+      busy=false;$('message').textContent=result?.message||'Keputusan tersimpan';chosen=null;load();
+    }).withFailureHandler(function(error){
+      busy=false;approve.disabled=false;reject.disabled=false;err(error);
+    }).offroadAdminV7ReviewBooking({
+      row:row.row,bookingId:row.bookingId,expectedVersion:row.version,
+      action:action,evidenceReference:ref.value.trim(),reason:reason.value.trim(),
+      confirmedIdentity:identity.checked,confirmedBankReview:bank.checked,
+      bankCreditConfirmed:action==='ACC'&&credited.checked,
+      verifiedAmount:action==='ACC'?Number(amount.value):0,verifiedAt:epoch
+    });
+  }
+  form.addEventListener('submit',function(event){event.preventDefault();decision('ACC');});
+  reject.addEventListener('click',function(){decision('REJECT');});
+}
+$('approvalReload').addEventListener('click',load);
+$('approvalSearch').addEventListener('input',render);
+$('approvalFilter').addEventListener('change',render);
+load();
 })();
 </script>
 </body></html>
