@@ -103,7 +103,7 @@ test('Offroad admin Google identity allowlist is mandatory and never trusts clie
  assert.equal(owner.ctx.offroadAdminV7ListBookings().role,'owner');
  assert.equal(owner.ctx.doGet().value,'OffroadAdminV7');
  owner.props.delete('OFFROAD_ADMIN_V7_SPREADSHEET_ID');
- assert.throws(()=>owner.ctx.offroadAdminV7ListBookings(),/ID spreadsheet Offroad/);
+ assert.throws(()=>owner.ctx.offroadAdminV7ListBookings(),/bukan Sheet staging Offroad/);
 });
 
 test('Owner-only verification changes only O:Q in Offroad Sheet and writes separate audit, never moves money',()=>{
