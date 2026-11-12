@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Offroad Ngarai Kalong · Operations</title>
+<style>
+:root{--pine:#183a2d;--pine2:#244d3b;--cream:#f7f5ee;--paper:#fffefb;--ink:#203328;--muted:#6a786c;--line:#dfe5db;--gold:#e3bd6a;--red:#9c4b44;--green:#277457;--shadow:0 16px 50px #1338280b;font:14px/1.55 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--cream);color:var(--ink)}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.5}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+a{color:inherit}
+.shell{display:grid;grid-template-columns:245px minmax(0,1fr);min-height:100vh}
+aside{background:var(--pine);color:#fff;padding:34px 24px;display:flex;flex-direction:column;gap:36px}
+.brand{display:flex;gap:12px;align-items:center;font-size:15px;font-weight:800;letter-spacing:.03em}
+.mark{width:38px;height:38px;border-radius:12px;background:#f4d18d;color:var(--pine);display:grid;place-items:center;font-size:23px}
+.brand small{display:block;font-size:10px;opacity:.7;letter-spacing:.15em}
+.navLabel{font-size:11px;text-transform:uppercase;letter-spacing:.16em;color:#b6ccbe;font-weight:800}
+.navItem{margin:10px 0;background:#ffffff1b;border:1px solid #ffffff22;padding:12px 14px;border-radius:12px;font-weight:700}
+.asideFoot{margin-top:auto;border-top:1px solid #ffffff28;padding-top:22px;font-size:12px;color:#d2e1d5}
+.asideFoot strong{display:block;color:#fff;margin-bottom:6px}
+main{width:100%;max-width:1500px;margin:0 auto;padding:38px clamp(20px,4vw,62px) 70px;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap}
+.eyebrow{margin:0 0 6px;letter-spacing:.2em;font-weight:800;font-size:10px;color:#3c7962;text-transform:uppercase}
+h1{font-size:clamp(26px,3vw,39px);line-height:1.15;letter-spacing:-.03em;margin:0 0 9px}
+.sub{margin:0;color:var(--muted);max-width:790px}
+.tag{border:1px solid #bfcfc4;color:#335644;border-radius:999px;padding:6px 12px;background:#ecf2eb;font-size:11px;font-weight:800;white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:28px 0}
+.stat{background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow);padding:20px;border-radius:16px}
+.stat small{display:block;color:var(--muted);font-weight:700;font-size:12px}
+.stat strong{display:block;font-size:29px;letter-spacing:-.035em;margin-top:4px}
+.workspace{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(290px,1fr);gap:18px;align-items:start}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);min-width:0;overflow:hidden}
+.panelHead{padding:22px 23px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
+h2{font-size:19px;letter-spacing:-.02em;margin:0}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;padding:16px 22px;border-bottom:1px solid var(--line)}
+input[type="search"],select,input[type="text"],input[type="datetime-local"]{min-width:0;width:100%;padding:10px 12px;background:white;border:1px solid #d1dcd3;border-radius:10px}
+.toolbar input{flex:2 1 160px}.toolbar select{flex:1 1 135px}
+.btn{background:var(--pine);color:white;border:1px solid var(--pine);border-radius:10px;padding:10px 14px;font-weight:750}
+.btn.alt{background:#fff;color:var(--pine);border-color:#c7d5cb}
+.btn.danger{background:#fff4f2;color:#9e483c;border-color:#e7bab5}
+.btn:hover:not(:disabled){filter:brightness(.95)}
+.tableWrap{overflow:auto}
+table{width:100%;border-collapse:collapse;text-align:left}
+th{padding:13px 18px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap}
+td{padding:15px 18px;border-top:1px solid #eaece6;vertical-align:middle}
+td small{display:block;color:var(--muted);margin-top:3px}
+td strong{font-size:13px}
+tr.active{background:#f1f5ef}
+.status{font-size:11px;font-weight:750;border-radius:20px;padding:5px 9px;display:inline-block;white-space:nowrap;background:#f2eee6;color:#80683a}
+.status.done{background:#e7f5ed;color:#29704d}
+.status.cancel{background:#fdeae8;color:#9a3e38}
+.detail{padding:24px;display:grid;gap:18px}
+.detailEmpty{padding:35px 24px;color:var(--muted);text-align:center}
+.detail h3{margin:0;font-size:18px;overflow-wrap:anywhere}
+.detail dl{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0}
+.detail dt{color:var(--muted);font-size:11px}
+.detail dd{font-weight:750;margin:3px 0 0;overflow-wrap:anywhere}
+.notice{border:1px solid #e9dfbd;background:#fffaf0;border-radius:12px;padding:13px 15px;color:#675528;font-size:12px}
+.actions{display:grid;gap:13px}
+.actions label{font-size:12px;font-weight:750}
+.actions label input{margin-top:5px}
+.check{display:flex;align-items:flex-start;gap:9px;font-weight:500!important}
+.check input{margin-top:3px;accent-color:var(--pine)}
+.actionRow{display:flex;gap:8px;flex-wrap:wrap}
+#message{min-height:24px;color:#3f7056;font-weight:700}
+.loading{padding:24px;color:var(--muted)}
+footer{margin-top:28px;color:var(--muted);font-size:12px}
+@media(max-width:1150px){.workspace{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.shell{display:block}aside{padding:15px 20px;flex-direction:row;align-items:center;gap:14px}.navLabel,.navItem,.asideFoot{display:none}main{padding:24px 14px 50px}.stat{padding:14px}.stat strong{font-size:26px}.panelHead{padding:18px}.toolbar{padding:14px}.detail{padding:18px}.detail dl{grid-template-columns:1fr 1fr}.tableWrap{font-size:12px}td,th{padding:12px}}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside aria-label="Navigasi Offroad">
+  <div class="brand"><span class="mark" aria-hidden="true">⌁</span><span>NGARAI KALONG<small>OFFROAD OPERATIONS</small></span></div>
+  <div><div class="navLabel">Workspace</div><div class="navItem">Verifikasi perjalanan</div></div>
+  <div class="asideFoot"><strong>Administrasi terpisah</strong>Dashboard ini hanya membaca dan memperbarui data perjalanan Offroad. Tidak terhubung ke keuangan Rumah Camp.</div>
+</aside>
+<main>
+  <header class="top"><div><p class="eyebrow">Operations / Verifikasi</p><h1>Perjalanan Offroad</h1><p class="sub">Periksa perjalanan dan bukti pelunasan dari catatan Offroad sebelum mengirim kelayakan poin Membership. Belum ada poin yang otomatis diterbitkan.</p></div><span id="role" class="tag">Memeriksa izin…</span></header>
+  <section class="stats" aria-label="Ringkasan">
+    <div class="stat"><small>Booking terbaru</small><strong id="statAll">–</strong></div>
+    <div class="stat"><small>Belum diverifikasi</small><strong id="statPending">–</strong></div>
+    <div class="stat"><small>Selesai & terverifikasi</small><strong id="statDone">–</strong></div>
+    <div class="stat"><small>Dibatalkan</small><strong id="statCancelled">–</strong></div>
+  </section>
+  <div class="workspace">
+    <section class="panel" aria-label="Daftar booking"><div class="panelHead"><h2>Daftar perjalanan</h2><button id="reload" class="btn alt" type="button">Muat ulang</button></div>
+      <div class="toolbar"><input id="search" type="search" placeholder="Cari ID, nama, atau paket" aria-label="Cari booking">
+        <select id="filter" aria-label="Filter perjalanan"><option value="all">Semua status</option><option value="pending">Belum diverifikasi</option><option value="done">Selesai</option><option value="cancel">Dibatalkan</option></select></div>
+      <div class="tableWrap"><table><thead><tr><th>Booking</th><th>Jadwal / unit</th><th>Status</th><th>Detail</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <p id="empty" class="loading" hidden>Tidak ada booking pada filter ini.</p>
+    </section>
+    <section class="panel" aria-label="Pemeriksaan booking"><div class="panelHead"><h2>Pemeriksaan</h2><span class="tag">Owner only</span></div>
+      <div id="detail" class="detailEmpty">Pilih booking pada tabel untuk memeriksa bukti perjalanan.</div>
+    </section>
+  </div>
+  <p id="message" role="status" aria-live="polite"></p>
+  <footer>Offroad Ngarai Kalong · Google Apps Script admin terpisah · Data keuangan tidak ditransfer ke Membership.</footer>
+</main>
+</div>
+<script>
+(function(){
+'use strict';
+var bookings=[],selected=null,role='viewer';
+var $=function(id){return document.getElementById(id);};
+function add(parent,tag,value,cls){
+  var element=document.createElement(tag);
+  if(typeof value==='string')element.textContent=value;
+  if(cls)element.className=cls;
+  parent.appendChild(element);return element;
+}
+function currency(value){return typeof value==='number'?'Rp'+new Intl.NumberFormat('id-ID').format(value):'Belum dapat diperiksa';}
+function kind(row){if(row.tripStatus==='CANCELLED')return 'cancel';if(row.tripStatus==='SELESAI'&&row.paymentVerified)return 'done';return 'pending';}
+function statusLabel(row){return kind(row)==='done'?'Selesai & terverifikasi':kind(row)==='cancel'?'Dibatalkan':'Belum diverifikasi';}
+function fail(error){$('message').textContent=error&&error.message?error.message:'Layanan Offroad tidak tersedia. Pastikan izin Google dan Sheet.';}
+function refresh(){
+ $('message').textContent='Mengambil data dari spreadsheet Offroad…';
+ google.script.run.withSuccessHandler(function(result){
+   if(!result||result.business!=='offroad')return fail(new Error('Respon sumber tidak sesuai.'));
+   role=result.role;bookings=Array.isArray(result.rows)?result.rows:[];
+   $('role').textContent=role==='owner'?'Owner · Offroad':'Viewer · baca saja';
+   $('statAll').textContent=bookings.length;
+   $('statPending').textContent=bookings.filter(function(x){return kind(x)==='pending';}).length;
+   $('statDone').textContent=bookings.filter(function(x){return kind(x)==='done';}).length;
+   $('statCancelled').textContent=bookings.filter(function(x){return kind(x)==='cancel';}).length;
+   var existing=selected&&bookings.find(function(x){return x.bookingId===selected.bookingId;});
+   selected=existing||null;render();if(selected)detail(selected);
+   $('message').textContent='Menampilkan hingga 100 booking terbaru dari sistem Offroad saja.';
+ }).withFailureHandler(fail).offroadAdminV7ListBookings();
+}
+function render(){
+ var out=$('rows');out.replaceChildren();
+ var query=$('search').value.trim().toLowerCase(),filter=$('filter').value;
+ var values=bookings.filter(function(x){
+   if(filter!=='all'&&kind(x)!==filter)return false;
+   return !query||[x.bookingId,x.name,x.package].some(function(t){return String(t||'').toLowerCase().includes(query);});
+ });
+ values.forEach(function(x){
+   var tr=add(out,'tr');if(selected&&selected.bookingId===x.bookingId)tr.className='active';
+   var a=add(tr,'td');add(a,'strong',x.name||'Tanpa nama');add(a,'small',x.bookingId);
+   var b=add(tr,'td');add(b,'strong',x.tripDate||'Belum ada tanggal');add(b,'small',x.units+' unit');
+   var c=add(tr,'td');add(c,'span',statusLabel(x),'status '+kind(x));
+   var d=add(tr,'td'),btn=add(d,'button','Periksa','btn alt');
+   btn.type='button';btn.addEventListener('click',function(){selected=x;render();detail(x);});
+ });
+ $('empty').hidden=values.length!==0;
+}
+function detail(row){
+ var parent=$('detail');parent.replaceChildren();parent.className='detail';
+ add(parent,'h3',row.bookingId);
+ var dl=add(parent,'dl');
+ [['Pemesan',row.name||'–'],['Tanggal',row.tripDate||'–'],['Paket',row.package||'–'],
+  ['Unit',String(row.units)],['Pembayaran (Offroad)',row.paymentStatus||'–'],
+  ['Diterima (Offroad)',currency(row.paidAmount)],
+  ['Sisa (Offroad)',currency(row.outstanding)],
+  ['Status perjalanan',statusLabel(row)]].forEach(function(pair){var el=add(dl,'div');add(el,'dt',pair[0]);add(el,'dd',pair[1]);});
+ add(parent,'div','Bukti transaksi diperiksa di pembukuan Offroad sendiri. Persetujuan di sini hanya menandai kolom O–Q, bukan memindahkan uang atau menerbitkan poin.','notice');
+ if(role!=='owner'){add(parent,'p','Akun ini hanya bisa melihat. Hubungi Owner Offroad untuk verifikasi.');return;}
+ if(kind(row)!=='pending'){add(parent,'p','Status ini sudah dicatat. Untuk koreksi diperlukan prosedur audit terpisah.');return;}
+ var form=add(parent,'form');form.className='actions';
+ var timeLabel=add(form,'label','Waktu perjalanan benar-benar selesai');
+ var time=add(timeLabel,'input');time.type='datetime-local';time.required=true;
+ var referenceLabel=add(form,'label','Referensi bukti internal (minimal 12 karakter, jangan masukkan nomor rekening)');
+ var reference=add(referenceLabel,'input');reference.type='text';reference.required=true;reference.minLength=12;reference.maxLength=160;reference.autocomplete='off';
+ var checks=[];
+ [['confirmedIdentity','Identitas pemesan dan booking sudah cocok'],
+  ['confirmedTrip','Perjalanan nyata sudah dikonfirmasi / pembatalan telah diperiksa'],
+  ['confirmedPayment','Mutasi pembayaran dan status refund di Offroad sudah diperiksa']].forEach(function(value){
+   var label=add(form,'label',null,'check');var check=add(label,'input');
+   check.type='checkbox';check.required=true;add(label,'span',value[1]);checks.push(check);
+ });
+ var buttons=add(form,'div');buttons.className='actionRow';
+ var approve=add(buttons,'button','Tandai selesai','btn');approve.type='submit';
+ var cancel=add(buttons,'button','Batalkan perjalanan','btn danger');cancel.type='button';
+ var submitting=false;
+ function submit(action){
+   if(submitting)return;
+   if(reference.value.trim().length<12||!checks.every(function(x){return x.checked;})){
+     fail(new Error('Isi referensi bukti dan centang ketiga pemeriksaan.'));return;
+   }
+   if(action==='SELESAI'&&!time.value){
+     fail(new Error('Masukkan waktu perjalanan benar-benar selesai.'));return;
+   }
+   var epoch=action==='SELESAI'?Math.floor(new Date(time.value).getTime()/1000):null;
+   if(action==='SELESAI'&&!Number.isFinite(epoch))return fail(new Error('Waktu tidak valid.'));
+   if(!window.confirm(action==='SELESAI'?
+     'Yakin bukti perjalanan selesai dan pelunasan telah diperiksa? Hanya kolom O–Q Offroad yang berubah.':
+     'Yakin membatalkan perjalanan ini? Tidak ada refund otomatis atau poin yang diubah.'))return;
+   submitting=true;approve.disabled=true;cancel.disabled=true;$('message').textContent='Menyimpan verifikasi di Offroad…';
+   google.script.run.withSuccessHandler(function(result){
+     submitting=false;
+     $('message').textContent=result&&result.message?result.message:'Status tersimpan.';
+     refresh();
+   }).withFailureHandler(function(error){
+     submitting=false;approve.disabled=false;cancel.disabled=false;fail(error);
+   }).offroadAdminV7Verify({
+     action:action,row:row.row,bookingId:row.bookingId,expectedVersion:row.version,
+     completedAt:epoch,evidenceReference:reference.value.trim(),
+     confirmedIdentity:checks[0].checked,confirmedTrip:checks[1].checked,confirmedPayment:checks[2].checked
+   });
+ }
+ form.addEventListener('submit',function(e){e.preventDefault();submit('SELESAI');});
+ cancel.addEventListener('click',function(){submit('CANCELLED');});
+}
+$('reload').addEventListener('click',refresh);$('search').addEventListener('input',render);$('filter').addEventListener('change',render);
+refresh();
+})();
+</script>
+</body></html>
