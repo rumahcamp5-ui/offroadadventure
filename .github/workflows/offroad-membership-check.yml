@@ -6,12 +6,14 @@ on:
     paths:
       - 'membership/**'
       - 'offroad-admin/**'
+      - 'offroad-booking/**'
       - 'tests/**'
       - '.github/workflows/offroad-membership-check.yml'
   pull_request:
     paths:
       - 'membership/**'
       - 'offroad-admin/**'
+      - 'offroad-booking/**'
       - 'tests/**'
       - '.github/workflows/offroad-membership-check.yml'
 permissions:
