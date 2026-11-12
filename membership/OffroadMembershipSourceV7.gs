@@ -134,7 +134,12 @@ function offroadV7SendVerifiedBooking(rowNumber) {
     if(headings[0]!=='ID Booking'||headings[2]!=='Status Perjalanan'||
        headings[3]!=='Tanggal Selesai'||headings[4]!=='Pembayaran Diverifikasi')
       throw Error('Kolom M:Q belum cocok. Tambahkan O Status Perjalanan, P Tanggal Selesai, Q Pembayaran Diverifikasi.');
-    const r=book.getRange(rowNumber,1,1,17).getValues()[0];
+    const approvalHeader=book.getRange(5,18,1,1).getDisplayValues()[0][0];
+    if(String(approvalHeader||'').trim()!=='Status Persetujuan Booking')
+      throw Error('Kolom R Status Persetujuan Booking belum tersedia.');
+    const r=book.getRange(rowNumber,1,1,23).getValues()[0];
+    if(String(r[17]||'').trim().toUpperCase()!=='ACC')
+      throw Error('Booking belum di-ACC setelah transfer terverifikasi; poin Offroad tidak boleh dikirim.');
     const bookingId=String(r[12]||'').trim(),units=Number(r[6]);
     const paymentStatus=String(r[9]||'').trim().toUpperCase();
     const received=offroadV7Money_(r[11]),remaining=offroadV7Money_(r[10]);
