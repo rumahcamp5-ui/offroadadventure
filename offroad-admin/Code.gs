@@ -147,6 +147,8 @@ function offroadAdminV7Verify(input) {
     var booking=offroadAdminV7Row_(row,input.row);
     if(!booking)throw Error('Booking Offroad tidak valid.');
     if(action==='SELESAI'){
+      if(booking.tripStatus==='CANCELLED')
+        throw Error('Booking dibatalkan. Periksa pembatalan sebelum mengizinkan penyelesaian.');
       var status=String(row[9]||'').trim().toUpperCase();
       var paid=offroadAdminV7Currency_(row[11]);
       var outstanding=offroadAdminV7Currency_(row[10]);
@@ -154,8 +156,6 @@ function offroadAdminV7Verify(input) {
         throw Error('Pembayaran harus lunas dalam catatan Offroad dan bukti transfer diverifikasi Owner.');
       if(booking.units<1||booking.units>50)
         throw Error('Jumlah unit Offroad tidak valid.');
-      if(booking.tripStatus==='CANCELLED')
-        throw Error('Booking dibatalkan. Periksa pembatalan sebelum mengizinkan penyelesaian.');
       if(booking.tripStatus==='SELESAI'&&booking.paymentVerified)
         throw Error('Perjalanan ini sudah diverifikasi.');
     }else if(booking.tripStatus==='CANCELLED'){
