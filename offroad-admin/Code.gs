@@ -61,6 +61,23 @@ function offroadAdminV7Currency_(value) {
   var n=Number(raw.replace(/\./g,''));
   return Number.isSafeInteger(n)&&n>=0?n:null;
 }
+function offroadAdminV7TripStart_(value) {
+  var text='';
+  if(value instanceof Date&&isFinite(value.getTime()))
+    text=Utilities.formatDate(value,'Asia/Jakarta','yyyy-MM-dd');
+  else text=String(value||'').trim();
+  var iso=/^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
+  var indo=/^(\d{2})\/(\d{2})\/(\d{4})$/.exec(text);
+  var year,month,day;
+  if(iso){year=Number(iso[1]);month=Number(iso[2]);day=Number(iso[3]);}
+  else if(indo){year=Number(indo[3]);month=Number(indo[2]);day=Number(indo[1]);}
+  else return null;
+  var date=new Date(Date.UTC(year,month-1,day));
+  if(date.getUTCFullYear()!==year||date.getUTCMonth()+1!==month||date.getUTCDate()!==day)
+    return null;
+  // Offroad site operates in West Indonesia Time (Asia/Jakarta, UTC+7).
+  return Math.floor(date.getTime()/1000)-7*3600;
+}
 function offroadAdminV7Hash_(str) {
   return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,str,Utilities.Charset.UTF_8)
     .map(function(n){return ('0'+(n&255).toString(16)).slice(-2);}).join('');
@@ -149,6 +166,9 @@ function offroadAdminV7Verify(input) {
     if(action==='SELESAI'){
       if(booking.tripStatus==='CANCELLED')
         throw Error('Booking dibatalkan. Periksa pembatalan sebelum mengizinkan penyelesaian.');
+      var tripStart=offroadAdminV7TripStart_(row[4]);
+      if(tripStart===null||input.completedAt<tripStart)
+        throw Error('Perjalanan tidak bisa dinyatakan selesai sebelum tanggal Offroad yang tercatat.');
       var status=String(row[9]||'').trim().toUpperCase();
       var paid=offroadAdminV7Currency_(row[11]);
       var outstanding=offroadAdminV7Currency_(row[10]);
