@@ -159,6 +159,131 @@ function offroadAdminV7Audit_(file,entry) {
   }
   sheet.appendRow(entry);
 }
+
+/**
+ * BOOKING APPROVAL is separate from completed trips and Membership points.
+ * R:W are Offroad-only operational fields. No payment or finance writes.
+ * A booking MUST NOT be approved from the client's DP/LUNAS selection alone.
+ */
+function offroadAdminV7ApprovalSheet_(actor) {
+  var file=offroadAdminV7Sheet_(actor);
+  var header=file.sheet.getRange(5,18,1,6).getDisplayValues()[0];
+  var expected=['Status Persetujuan Booking','Waktu Keputusan Booking',
+    'Admin Keputusan Booking','Alasan Reject Booking',
+    'Jumlah Transfer Terverifikasi','Waktu Transfer Terverifikasi'];
+  for(var i=0;i<expected.length;i++)
+    if(String(header[i]||'').trim()!==expected[i])
+      throw Error('Kolom '+String.fromCharCode(82+i)+' belum siap untuk approval booking Offroad.');
+  return file;
+}
+function offroadAdminV7ApprovalStatus_(row) {
+  var s=String(row[17]||'').trim().toUpperCase();
+  if(!s)return 'MENUNGGU VERIFIKASI';
+  if(['ACC','REJECT'].indexOf(s)>=0)return s;
+  throw Error('Status approval booking tidak dikenali; verifikasi dihentikan.');
+}
+function offroadAdminV7ApprovalRow_(row,number) {
+  var booking=offroadAdminV7Row_(row,number);
+  if(!booking)return null;
+  return {
+    row:number,bookingId:booking.bookingId,name:booking.name,tripDate:booking.tripDate,
+    units:booking.units,package:booking.package,
+    declaredPayment:String(row[9]||''),declaredPaid:offroadAdminV7Currency_(row[11]),
+    declaredRemaining:offroadAdminV7Currency_(row[10]),
+    approval:offroadAdminV7ApprovalStatus_(row),
+    bankVerifiedAmount:offroadAdminV7Currency_(row[21]),
+    version:offroadAdminV7Hash_(JSON.stringify(row.slice(1,23)))
+  };
+}
+function offroadAdminV7ListApprovals() {
+  var user=offroadAdminV7Identity_();
+  var source=offroadAdminV7ApprovalSheet_(user),sheet=source.sheet;
+  var last=Math.min(sheet.getLastRow(),OFFROAD_V7_MAX_ROW);
+  var count=Math.min(100,Math.max(0,last-OFFROAD_V7_FIRST_ROW+1)),out=[];
+  if(count){
+    var start=last-count+1;
+    var rows=sheet.getRange(start,1,count,23).getValues();
+    for(var i=rows.length-1;i>=0;i--){
+      var obj=offroadAdminV7ApprovalRow_(rows[i],start+i);
+      if(obj)out.push(obj);
+    }
+  }
+  return {business:'offroad',role:user.role,rows:out,pointsIssued:false,
+    note:'Approval booking hanya mencatat keputusan Offroad, bukan bukti uang masuk otomatis.'};
+}
+function offroadAdminV7ReviewBooking(input) {
+  var user=offroadAdminV7Identity_();
+  if(user.role!=='owner')throw Error('Hanya Owner Offroad dapat ACC atau Reject booking.');
+  if(!input||typeof input!=='object'||Array.isArray(input)||
+     ['ACC','REJECT'].indexOf(input.action)<0||
+     !Number.isInteger(input.row)||input.row<OFFROAD_V7_FIRST_ROW||input.row>OFFROAD_V7_MAX_ROW||
+     typeof input.bookingId!=='string'||typeof input.expectedVersion!=='string'||
+     !/^[a-f0-9]{64}$/.test(input.expectedVersion))
+    throw Error('Permintaan approval tidak valid.');
+  var ref=String(input.evidenceReference||'').trim();
+  var reason=String(input.reason||'').trim();
+  if(ref.length<12||ref.length>160)
+    throw Error('Referensi pemeriksaan bank / bukti wajib 12–160 karakter.');
+  if(input.confirmedIdentity!==true||input.confirmedBankReview!==true)
+    throw Error('Identitas dan mutasi rekening Offroad harus diperiksa secara manual.');
+  var isAcc=input.action==='ACC',bankTimestamp=null,confirmedAmount=0;
+  if(isAcc){
+    if(input.bankCreditConfirmed!==true)
+      throw Error('ACC dilarang tanpa bukti uang sudah masuk rekening Offroad.');
+    if(!Number.isSafeInteger(input.verifiedAmount)||input.verifiedAmount<=0)
+      throw Error('Nominal transfer terverifikasi harus rupiah bulat positif.');
+    if(!Number.isSafeInteger(input.verifiedAt)||input.verifiedAt<1600000000||
+       input.verifiedAt>Math.floor(Date.now()/1000)+300)
+      throw Error('Waktu transfer diverifikasi tidak valid.');
+    bankTimestamp=new Date(input.verifiedAt*1000);
+    confirmedAmount=input.verifiedAmount;
+  }else{
+    if(reason.length<8||reason.length>220)
+      throw Error('Alasan Reject wajib 8–220 karakter.');
+    if(input.bankCreditConfirmed===true||input.verifiedAmount>0)
+      throw Error('Ada indikasi transfer sudah masuk: jangan Reject sebelum rekonsiliasi.');
+  }
+  var lock=LockService.getScriptLock();
+  if(!lock.tryLock(25000))throw Error('Sedang ada pemeriksaan lain. Coba kembali.');
+  try{
+    var source=offroadAdminV7ApprovalSheet_(user),sheet=source.sheet;
+    if(input.row>sheet.getLastRow())throw Error('Baris booking tidak ditemukan.');
+    var row=sheet.getRange(input.row,1,1,23).getValues()[0];
+    var current=offroadAdminV7ApprovalRow_(row,input.row);
+    if(!current||current.bookingId!==input.bookingId||current.version!==input.expectedVersion)
+      throw Error('Data booking/pembayaran berubah, muat ulang sebelum memutuskan.');
+    if(current.approval!=='MENUNGGU VERIFIKASI')
+      throw Error('Booking sudah diputuskan. Perubahan memerlukan audit koreksi tersendiri.');
+    if(String(row[14]||'').toUpperCase()==='CANCELLED')
+      throw Error('Perjalanan sudah dibatalkan, tidak boleh ACC booking.');
+    if(isAcc){
+      var claimed=String(row[9]||'').trim().toUpperCase();
+      // DP can be accepted after actual credited deposit. LUNAS is not proof.
+      if(!/^(DP|LUNAS|CUSTOM)(?:\s|$|=)/.test(claimed))
+        throw Error('Jenis pembayaran booking tidak dikenali.');
+      if(current.declaredPaid===null||current.declaredPaid<=0||
+         current.declaredPaid!==confirmedAmount)
+        throw Error('Nominal transfer di bank tidak cocok dengan jumlah yang diajukan. Perlu pemeriksaan manual.');
+      if(current.declaredRemaining===null||current.declaredRemaining<0)
+        throw Error('Sisa pembayaran booking tidak valid.');
+    }
+    var stamp=new Date(),hash=offroadAdminV7Hash_(ref);
+    offroadAdminV7Audit_(source.file,[stamp,user.email,current.bookingId,input.row,
+      'BOOKING_'+input.action+'_REQUESTED',hash,'Offroad booking approval requested, no finance write']);
+    // R:W ONLY. Never change J (declared payment), K/L (money), N (finance sync).
+    sheet.getRange(input.row,18,1,6).setValues([[
+      input.action,stamp,user.email,isAcc?'':reason,
+      isAcc?confirmedAmount:'',isAcc?bankTimestamp:''
+    ]]);
+    offroadAdminV7Audit_(source.file,[new Date(),user.email,current.bookingId,input.row,
+      'BOOKING_'+input.action+'_COMMITTED',hash,'Offroad R:W only; no finance sync/points issued']);
+    return {ok:true,business:'offroad',bookingStatus:input.action,
+      pointsIssued:false,financeChanged:false,
+      message:isAcc?'Booking berhasil di-ACC setelah transfer terverifikasi.':
+        'Booking ditolak dan alasan tersimpan. Tidak ada refund otomatis.'};
+  }finally{lock.releaseLock();}
+}
+
 function offroadAdminV7Verify(input) {
   var user=offroadAdminV7Identity_();
   if(user.role!=='owner')throw Error('Hanya Owner Offroad yang dapat memverifikasi perjalanan.');
@@ -194,6 +319,11 @@ function offroadAdminV7Verify(input) {
     var booking=offroadAdminV7Row_(row,input.row);
     if(!booking)throw Error('Booking Offroad tidak valid.');
     if(action==='SELESAI'){
+      // A completed trip cannot become Membership-eligible without an approved booking.
+      var bookingApproval=offroadAdminV7ApprovalSheet_(user);
+      var approvalCell=bookingApproval.sheet.getRange(input.row,18,1,1).getValues()[0][0];
+      if(String(approvalCell||'').trim().toUpperCase()!=='ACC')
+        throw Error('Booking belum ACC berdasarkan transfer, perjalanan tidak boleh diverifikasi selesai.');
       if(booking.tripStatus==='CANCELLED')
         throw Error('Booking dibatalkan. Periksa pembatalan sebelum mengizinkan penyelesaian.');
       var tripStart=offroadAdminV7TripStart_(row[4]);
