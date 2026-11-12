@@ -6,7 +6,9 @@ import {createHash} from 'node:crypto';
 
 const script=readFileSync(new URL('../offroad-admin/Code.gs',import.meta.url),'utf8');
 const view=readFileSync(new URL('../offroad-admin/OffroadAdminV7.html',import.meta.url),'utf8');
-const SPREADSHEET_ID='OFFROAD_ONLY_'+'A'.repeat(32);
+const SPREADSHEET_ID='1jTrkBvM4V2mHIA4KeLyixGcJgV4ASxjy6jJgyFku8Po';
+const STAGING_TITLE='[STAGING] OFFROAD V7 ADMIN TEST - DATA SIMULASI';
+const STAGING_MARKER='STAGING OFFROAD V7 • DATA SIMULASI • JANGAN GUNAKAN UNTUK BOOKING ASLI';
 const HEADERS=['No','Timestamp','Nama Pemesan','No WhatsApp Pemesan','Tanggal Offroad','Hari',
  'Jumlah Unit','Pilih Paket ','Catatan (optional)','Lunas/DP','Sisa Pelunasan','Jumlah Uang',
  'ID Booking','Status Sync Keuangan','Status Perjalanan','Tanggal Selesai','Pembayaran Diverifikasi'];
@@ -18,9 +20,11 @@ function setup({email='owner@offroad.test',payment='LUNAS',balance=0,paid=125000
    'private notes',payment,balance,paid,'OFFROAD-BOOKING-20261111-001',
    'SYNCED',status,'',''];
  const cells=[...Array.from({length:5},()=>Array(17).fill('')),row];
+ cells[0][0]=STAGING_MARKER;
  cells[4]=headers;
  const writes=[],auditRows=[],props=new Map([
   ['OFFROAD_ADMIN_V7_SPREADSHEET_ID',SPREADSHEET_ID],
+  ['OFFROAD_ADMIN_V7_MODE','staging'],
   ['OFFROAD_ADMIN_V7_OWNER_EMAILS','owner@offroad.test'],
   ['OFFROAD_ADMIN_V7_VIEWER_EMAILS','viewer@offroad.test']
  ]);
@@ -39,6 +43,7 @@ function setup({email='owner@offroad.test',payment='LUNAS',balance=0,paid=125000
  };
  const audit={appendRow:entry=>{auditRows.push(entry);writes.push({tab:'audit',entry});}};
  const workbook={
+  getName:()=>STAGING_TITLE,
   getSheetByName:name=>name==='Formulir Offroad'?booked:name==='OFFROAD V7 AUDIT'&&(inserted||auditExists)?audit:null,
   insertSheet:name=>{assert.equal(name,'OFFROAD V7 AUDIT');inserted++;return audit;}
  };
@@ -67,6 +72,20 @@ function request(s,patch={}){
    evidenceReference:'mutasi-bank-offroad-20261111',confirmedIdentity:true,
    confirmedTrip:true,confirmedPayment:true,...patch};
 }
+test('staging admin never opens or writes a production spreadsheet by mistaken configuration',()=>{
+ const wrongMode=setup();wrongMode.props.set('OFFROAD_ADMIN_V7_MODE','production');
+ assert.throws(()=>wrongMode.ctx.offroadAdminV7ListBookings(),/hanya diizinkan untuk mode staging/);
+ assert.equal(wrongMode.writes.length,0);
+ const wrongId=setup();wrongId.props.set('OFFROAD_ADMIN_V7_SPREADSHEET_ID','PRODUCTION_'+'X'.repeat(32));
+ assert.throws(()=>wrongId.ctx.offroadAdminV7Verify(request(wrongId)),/bukan Sheet staging/);
+ assert.equal(wrongId.writes.length,0);
+ const wrongWatermark=setup();wrongWatermark.cells[0][0]='LIVE OFFROAD DATA';
+ assert.throws(()=>wrongWatermark.ctx.offroadAdminV7ListBookings(),/Penanda data simulasi/);
+ assert.equal(wrongWatermark.writes.length,0);
+ assert.match(script,/OFFROAD_V7_STAGING_SPREADSHEET_ID/);
+ assert.doesNotMatch(script,/OFFROAD_ADMIN_V7_MODE'\)\s*===\s*'production'/);
+});
+
 test('Offroad admin Google identity allowlist is mandatory and never trusts client role',()=>{
  for(const email of ['', 'stranger@offroad.test']){
   const s=setup({email});
