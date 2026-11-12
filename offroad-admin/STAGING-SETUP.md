@@ -5,7 +5,7 @@
 ## Yang sudah disiapkan
 
 - Spreadsheet dummy khusus akun Offroad: https://docs.google.com/spreadsheets/d/1jTrkBvM4V2mHIA4KeLyixGcJgV4ASxjy6jJgyFku8Po/edit
-- Tab `Formulir Offroad`, header baris 5 A–Q, empat booking fiktif pada baris 6–9, penanda staging di A1, zona waktu Asia/Jakarta. O mempunyai validasi status; P/Q diberi format tanggal/waktu.
+- Tab `Formulir Offroad`, header baris 5 **A–W**, empat booking fiktif pada baris 6–9, penanda staging di A1, zona waktu Asia/Jakarta. **O–Q** untuk verifikasi perjalanan; **R–W** untuk ACC/Reject booking dan bukti bank. Status O/R mempunyai validasi; P/Q/S/W diberi format tanggal/waktu. **A:N tetap data dummy booking & keuangan.**
 - Backend dan UI di `offroad-admin/Code.gs` dan `offroad-admin/OffroadAdminV7.html`, serta manifest `offroad-admin/appsscript.json`.
 - Backend **menolak mode produksi dan ID file lain** sebelum membaca atau memperbarui booking.
 
@@ -20,10 +20,12 @@
    - `OFFROAD_ADMIN_V7_VIEWER_EMAILS` → email Google Viewer, opsional, dipisah koma jika lebih dari satu
 4. Pastikan akun Owner mempunyai **Editor** pada Sheet dummy; Viewer hanya perlu izin baca. Di editor Apps Script, pilih `offroadAdminV7Preflight` dan klik **Run**; izinkan OAuth untuk data dummy saja. Hasil yang benar: `ready:true`, `environment:'STAGING ONLY'`, `business:'offroad'`, tanpa perubahan keuangan/poin. Bila email Google kosong, **jangan mematikan pemeriksaan login**.
 5. Baru buat **Deploy → New deployment → Web app**. Pilih **Execute as: User accessing the web app** dan pembatasan akses terketat yang mendukung akun Google staf. Di akun Google pribadi dengan pilihan login luas, kode tetap menolak semua akun selain allowlist, tetapi sebaiknya jangan membagikan URL luas. Coba Owner, Viewer, dan akun yang tidak terdaftar.
-6. Uji **hanya** booking dummy, satu per satu: LUNAS, DP (wajib ditolak), Custom lunas, dan pembatalan. Setelah tes, pastikan kolom **A:N tidak berubah**, O:Q sesuai verifikasi, dan tab `OFFROAD V7 AUDIT` tercatat. **Jangan** menghubungkan layanan keuangan, Apps Script booking atau token Membership selama pengujian ini.
+6. Uji **hanya** booking dummy. Pertama gunakan panel **Approval Booking**: tanpa transfer tetap *Menunggu Verifikasi*, Reject jika mutasi tidak masuk, ACC bila transfer LUNAS/DP yang sah dan nominalnya cocok. DP **boleh ACC booking** setelah deposit masuk, tetapi **tidak boleh diverifikasi selesai untuk Membership** sebelum lunas. Setelah ACC, uji verifikasi perjalanan (O–Q), Custom price, pembatalan, dan audit. Pastikan hanya R–W/O–Q yang berubah, kolom **A:N tetap utuh**, dan `OFFROAD V7 AUDIT` terisi. **Jangan** menghubungkan keuangan, booking lama, atau token Membership saat tes.
 
 ## Batas pengerjaan otomatis
 
 Koneksi yang tersedia saat ini mengizinkan pembacaan GitHub dan pembuatan Sheet dummy, tetapi **tidak menyediakan API untuk membuat/mengubah/mendeploy project Google Apps Script**. Karena itu pembuatan project, persetujuan OAuth dan deployment web app perlu diselesaikan oleh akun Google pemilik, bukan dengan mengaku sudah otomatis aktif.
 
 **Jangan merge PR Offroad #1 ke `main`, jangan mengubah Sheet Offroad asli, dan jangan jalankan adapter pengiriman poin sebelum staging lulus.**
+
+**Sebelum mengaktifkan produksi:** perubahan approval di dashboard **belum** memblokir script finansial lama yang mungkin telah menyinkronkan nominal sejak formulir masuk. Wajib audit Code.gs penerima booking dan alur `Status Sync Keuangan` kolom N terlebih dulu agar pembayaran tak terverifikasi tidak dianggap pemasukan.
