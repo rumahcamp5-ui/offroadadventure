@@ -114,6 +114,25 @@ function offroadAdminV7Row_(values,rowNumber) {
     tripCompleted:values[15] instanceof Date && isFinite(values[15].getTime()),
     version:offroadAdminV7Version_(values)};
 }
+/**
+ * Read-only staging preflight. Does not return any booking rows or financial
+ * values, and cannot issue rewards. Call manually once after authorization.
+ */
+function offroadAdminV7Preflight() {
+  var actor=offroadAdminV7Identity_();
+  var source=offroadAdminV7Sheet_(actor);
+  return {
+    ready:true,
+    environment:'STAGING ONLY',
+    business:'offroad',
+    accessRole:actor.role,
+    sheet:'Formulir Offroad (SIMULASI)',
+    recordsAvailable:Math.max(0,Math.min(source.sheet.getLastRow(),OFFROAD_V7_MAX_ROW)-OFFROAD_V7_FIRST_ROW+1),
+    pointsIssued:false,
+    financeChanged:false
+  };
+}
+
 function offroadAdminV7ListBookings() {
   var user=offroadAdminV7Identity_();
   var file=offroadAdminV7Sheet_(user),sheet=file.sheet;
