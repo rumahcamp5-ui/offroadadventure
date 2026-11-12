@@ -21,6 +21,9 @@ var OFFROAD_V7_BOOKING_TAB = 'Formulir Offroad';
 var OFFROAD_V7_AUDIT_TAB = 'OFFROAD V7 AUDIT';
 var OFFROAD_V7_FIRST_ROW = 6;
 var OFFROAD_V7_MAX_ROW = 1006;
+var OFFROAD_V7_STAGING_SPREADSHEET_ID = '1jTrkBvM4V2mHIA4KeLyixGcJgV4ASxjy6jJgyFku8Po';
+var OFFROAD_V7_STAGING_TITLE = '[STAGING] OFFROAD V7 ADMIN TEST - DATA SIMULASI';
+var OFFROAD_V7_STAGING_MARKER = 'STAGING OFFROAD V7 • DATA SIMULASI • JANGAN GUNAKAN UNTUK BOOKING ASLI';
 
 function offroadAdminV7Emails_(raw) {
   return String(raw || '').split(',').map(function(value){return value.trim().toLowerCase();})
@@ -38,12 +41,20 @@ function offroadAdminV7Identity_() {
   throw Error('Akun Google ini tidak mendapat izin admin Offroad.');
 }
 function offroadAdminV7Sheet_(identity) {
+  // This release is STAGING ONLY. An accidental production Sheet ID,
+  // wrong document title or missing fixture watermark MUST fail closed.
+  if(identity.props.getProperty('OFFROAD_ADMIN_V7_MODE')!=='staging')
+    throw Error('Admin Offroad V7 hanya diizinkan untuk mode staging.');
   var id=identity.props.getProperty('OFFROAD_ADMIN_V7_SPREADSHEET_ID');
-  if(!/^[A-Za-z0-9_-]{20,120}$/.test(String(id||'')))
-    throw Error('ID spreadsheet Offroad belum dikonfigurasi.');
+  if(id!==OFFROAD_V7_STAGING_SPREADSHEET_ID)
+    throw Error('ID spreadsheet bukan Sheet staging Offroad yang disetujui.');
   var file=SpreadsheetApp.openById(id);
+  if(file.getName()!==OFFROAD_V7_STAGING_TITLE)
+    throw Error('Judul file staging tidak sesuai; akses ditolak.');
   var sheet=file.getSheetByName(OFFROAD_V7_BOOKING_TAB);
   if(!sheet)throw Error('Tab Formulir Offroad tidak tersedia.');
+  if(sheet.getRange(1,1,1,1).getDisplayValues()[0][0]!==OFFROAD_V7_STAGING_MARKER)
+    throw Error('Penanda data simulasi staging tidak cocok; akses ditolak.');
   var header=sheet.getRange(5,1,1,17).getDisplayValues()[0];
   var expected={2:'Nama Pemesan',6:'Jumlah Unit',9:'Lunas/DP',10:'Sisa Pelunasan',
     11:'Jumlah Uang',12:'ID Booking',13:'Status Sync Keuangan',
