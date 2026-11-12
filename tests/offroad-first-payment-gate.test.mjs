@@ -46,7 +46,7 @@ test('missing approval, rejected booking, unknown staff or mismatched bank evide
  for(const [name,patch,pattern] of [
   ['pending',{status:''},/belum di-ACC/],['reject',{status:'REJECT'},/belum di-ACC/],
   ['fakeStaff',{approvedBy:''},/belum di-ACC/],['unapproved',{approvedAt:''},/belum di-ACC/],
-  ['bankAmount',{bankAmount:250000},/Bukti uang/],['bankDate',{bankAt:at-60},/Bukti uang/],
+  ['bankAmount',{bankAmount:250000},/Bukti uang/],['bankDate',{bankAt:at-60,verifiedAt:at},/Bukti uang/],
   ['wrongKind',{kind:'settlement'},/pelunasan DP butuh ledger/],
   ['badHeaders',{expectedHeaders:['none',...headers.slice(1)]},/Header R:W/],
   ['invalidPayment',{amount:0},/Nominal atau waktu/]
