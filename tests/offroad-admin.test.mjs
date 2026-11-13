@@ -5,6 +5,9 @@ import vm from 'node:vm';
 import {createHash} from 'node:crypto';
 
 const script=readFileSync(new URL('../offroad-admin/Code.gs',import.meta.url),'utf8');
+const paymentScript=readFileSync(new URL('../offroad-admin/OffroadPaymentsV7.gs',import.meta.url),'utf8');
+const LEDGER_HEADERS=['ID Booking','ID Pembayaran','Jenis Pembayaran','Jumlah Terverifikasi',
+ 'Waktu Transfer','Hash Referensi Bank','Diverifikasi Oleh','Waktu Pencatatan','Status Ledger','Sumber'];
 const view=readFileSync(new URL('../offroad-admin/OffroadAdminV7.html',import.meta.url),'utf8');
 const SPREADSHEET_ID='1jTrkBvM4V2mHIA4KeLyixGcJgV4ASxjy6jJgyFku8Po';
 const STAGING_TITLE='[STAGING] OFFROAD V7 ADMIN TEST - DATA SIMULASI';
@@ -24,6 +27,20 @@ function setup({email='owner@offroad.test',payment='LUNAS',balance=0,paid=125000
  const cells=[...Array.from({length:5},()=>Array(23).fill('')),row];
  cells[0][0]=STAGING_MARKER;
  cells[4]=headers;
+ if(bookingApproval==='ACC'){
+   row[18]=new Date(Date.now()-250000);
+   row[19]='owner@offroad.test';
+   row[21]=paid;
+   row[22]=new Date(Date.now()-360000);
+ }
+ const proof=createHash('sha256').update('STAGING-BANK-FIRST-PROOF').digest('hex');
+ const bookId=String(row[12]);
+ const paymentId='OFFROADV7-'+createHash('sha256').update(bookId+'|LUNAS|'+proof).digest('hex').slice(0,32);
+ const ledgerRows=[LEDGER_HEADERS];
+ if(bookingApproval==='ACC' && balance===0 && paid>0 && ['LUNAS','CUSTOM'].includes(payment)){
+   ledgerRows.push([bookId,paymentId,'LUNAS',paid,new Date(row[22]),proof,
+     'owner@offroad.test',new Date(),'VERIFIED_STAGING','OFFROAD_STAGING']);
+ }
  const writes=[],auditRows=[],props=new Map([
   ['OFFROAD_ADMIN_V7_SPREADSHEET_ID',SPREADSHEET_ID],
   ['OFFROAD_ADMIN_V7_MODE','staging'],
@@ -44,9 +61,20 @@ function setup({email='owner@offroad.test',payment='LUNAS',balance=0,paid=125000
   })
  };
  const audit={appendRow:entry=>{auditRows.push(entry);writes.push({tab:'audit',entry});}};
+ const paymentLedger={
+  getLastRow:()=>ledgerRows.length,
+  getRange:(start,col,numRows=1,numCols=1)=>({
+    getValues:()=>ledgerRows.slice(start-1,start-1+numRows).map(r=>r.slice(col-1,col-1+numCols)),
+    getDisplayValues:()=>ledgerRows.slice(start-1,start-1+numRows)
+      .map(r=>r.slice(col-1,col-1+numCols).map(v=>String(v||'')))
+  }),
+  appendRow:row=>{ledgerRows.push(row);writes.push({tab:'payment-ledger',row});}
+ };
  const workbook={
   getName:()=>STAGING_TITLE,
-  getSheetByName:name=>name==='Formulir Offroad'?booked:name==='OFFROAD V7 AUDIT'&&(inserted||auditExists)?audit:null,
+  getSheetByName:name=>name==='Formulir Offroad'?booked:
+    name==='OFFROAD V7 PAYMENT LEDGER'?paymentLedger:
+    name==='OFFROAD V7 AUDIT'&&(inserted||auditExists)?audit:null,
   insertSheet:name=>{assert.equal(name,'OFFROAD V7 AUDIT');inserted++;return audit;}
  };
  const ctx=vm.createContext({
@@ -63,8 +91,8 @@ function setup({email='owner@offroad.test',payment='LUNAS',balance=0,paid=125000
     createHtmlOutput:value=>({value,setTitle(x){this.title=x;return this;}})
   }
  });
- vm.runInContext(script,ctx);
- return {ctx,row,cells,headers,writes,auditRows,props,inserted:()=>inserted,lockReleased:()=>lockReleased};
+ vm.runInContext(script+'\n'+paymentScript,ctx);
+ return {ctx,row,cells,headers,writes,auditRows,ledgerRows,props,inserted:()=>inserted,lockReleased:()=>lockReleased};
 }
 function request(s,patch={}){
  const result=s.ctx.offroadAdminV7ListBookings();
@@ -161,7 +189,7 @@ test('DP, unpaid, bad proof, stale version and mismatched booking cannot be appr
   {payment:'LUNAS',paid:0}
  ]){
   const s=setup(change);
-  assert.throws(()=>s.ctx.offroadAdminV7Verify(request(s)),/Pembayaran harus lunas/);
+  assert.throws(()=>s.ctx.offroadAdminV7Verify(request(s)),/Pembayaran (harus|belum) lunas|Jenis pembayaran/);
   assert.equal(s.writes.length,0);
  }
  const s=setup(),r=request(s);
