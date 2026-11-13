@@ -64,10 +64,13 @@ function offroadAdminV7Sheet_(identity) {
   });
   return {file:file,sheet:sheet};
 }
+function offroadAdminV7CanWrite_(actor) {
+  return actor.role==='owner'&&
+    actor.props.getProperty('OFFROAD_ADMIN_V7_FINANCE_TRIGGER_AUDITED')==='YES'&&
+    actor.props.getProperty('OFFROAD_ADMIN_V7_WRITE_ENABLED')==='YES';
+}
 function offroadAdminV7Writable_(actor) {
-  if(actor.role!=='owner'||
-     actor.props.getProperty('OFFROAD_ADMIN_V7_FINANCE_TRIGGER_AUDITED')!=='YES'||
-     actor.props.getProperty('OFFROAD_ADMIN_V7_WRITE_ENABLED')!=='YES')
+  if(!offroadAdminV7CanWrite_(actor))
     throw Error('Perubahan live dikunci sampai seluruh sync keuangan diaudit dan Owner mengaktifkan izin tulis.');
 }
 function offroadAdminV7Currency_(value) {
@@ -128,7 +131,8 @@ function offroadAdminV7Preflight() {
   var source=offroadAdminV7Sheet_(actor);
   return {
     ready:true,
-    environment:'PRODUCTION READ-ONLY UNTIL AUDITED',
+    environment:'PRODUCTION',
+    writesEnabled:offroadAdminV7CanWrite_(actor),
     business:'offroad',
     accessRole:actor.role,
     sheet:'Formulir Offroad (ONLINE)',
@@ -152,7 +156,7 @@ function offroadAdminV7ListBookings() {
       if(booking)result.push(booking);
     }
   }
-  return {business:'offroad',role:user.role,rows:result,
+  return {business:'offroad',role:user.role,canWrite:offroadAdminV7CanWrite_(user),rows:result,
     note:'Data internal Offroad. Ini bukan laporan gabungan atau saldo Membership.',
     pointsIssued:false};
 }
@@ -215,7 +219,7 @@ function offroadAdminV7ListApprovals() {
       if(obj)out.push(obj);
     }
   }
-  return {business:'offroad',role:user.role,rows:out,pointsIssued:false,
+  return {business:'offroad',role:user.role,canWrite:offroadAdminV7CanWrite_(user),rows:out,pointsIssued:false,
     note:'Approval booking hanya mencatat keputusan Offroad, bukan bukti uang masuk otomatis.'};
 }
 function offroadAdminV7ReviewBooking(input) {
