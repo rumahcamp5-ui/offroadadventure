@@ -285,6 +285,72 @@ function render(){
   });
   $('approvalEmpty').hidden=rows.length!==0;
 }
+function toLocalInput(unix){
+  if(!Number.isInteger(unix))return '';
+  var d=new Date(unix*1000),pad=function(n){return String(n).padStart(2,'0');};
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+
+    'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+}
+function renderBankLedger(row,parent) {
+  var shell=el(parent,'section');shell.className='approvalForm';
+  el(shell,'h3','Ledger pembayaran terverifikasi');
+  el(shell,'div','Catat DP awal/LUNAS, kemudian pelunasan DP di ledger Offroad staging saja. Ini bukan posting ke keuangan dan bukan pemberian poin.','notice');
+  var status=el(shell,'p','Memeriksa bukti bank dalam ledger simulasi...');
+  google.script.run.withSuccessHandler(function(answer){
+    if(!answer||answer.business!=='offroad')return err(new Error('Ledger bukan milik Offroad.'));
+    var a=answer.payment;
+    status.textContent='Terbukti: '+rupiah(a.paidVerified)+
+      ' / Total: '+rupiah(a.expectedTotal)+
+      ' · Sisa: '+rupiah(a.outstandingVerified)+
+      (a.fullyPaid?' · LUNAS TERBUKTI':' · BELUM LUNAS');
+    if(role!=='owner')return;
+    var stage=!a.firstVerified?'PERTAMA':
+      a.isDp&&!a.settlementVerified?'PELUNASAN':null;
+    if(!stage){el(shell,'p','Seluruh pembayaran tercatat; tidak ada aksi baru untuk booking ini.');return;}
+    var form=el(shell,'form');form.className='approvalForm';
+    el(form,'p',stage==='PERTAMA'?
+      'Tahap 1: pastikan uang masuk yang dipakai untuk ACC booking.':
+      'Tahap 2: periksa mutasi pelunasan yang BERBEDA dari transfer DP.');
+    var amountLabel=el(form,'label','Jumlah uang benar-benar masuk (Rp)');
+    var amount=el(amountLabel,'input');amount.type='number';amount.min='1';amount.step='1';
+    amount.value=stage==='PERTAMA'?row.bankVerifiedAmount:a.outstandingVerified;
+    var timeLabel=el(form,'label','Waktu mutasi rekening Offroad');
+    var when=el(timeLabel,'input');when.type='datetime-local';when.required=true;
+    if(stage==='PERTAMA')when.value=toLocalInput(row.bankVerifiedAt);
+    var refLabel=el(form,'label','Nomor referensi mutasi bank unik (tidak mengandung data rahasia)');
+    var reference=el(refLabel,'input');reference.type='text';
+    reference.minLength=12;reference.maxLength=160;reference.required=true;
+    var aLabel=el(form,'label',null,'check');var one=el(aLabel,'input');one.type='checkbox';
+    el(aLabel,'span','Identitas booking dan riwayat ACC sudah cocok');
+    var bLabel=el(form,'label',null,'check');var two=el(bLabel,'input');two.type='checkbox';
+    el(bLabel,'span','Transfer sudah masuk rekening Offroad, bukan hanya screenshot');
+    var cLabel=el(form,'label',null,'check');var three=el(cLabel,'input');three.type='checkbox';
+    el(cLabel,'span','Tidak ada refund atau sengketa atas transfer ini');
+    var submit=el(form,'button',stage==='PERTAMA'?'Catat pembayaran pertama':'Catat pelunasan DP','btn');
+    submit.type='submit';
+    form.addEventListener('submit',function(event){
+      event.preventDefault();
+      if(!one.checked||!two.checked||!three.checked||reference.value.trim().length<12||
+         !when.value||!Number.isSafeInteger(Number(amount.value))||Number(amount.value)<=0){
+        err(new Error('Nominal, waktu bank, referensi dan tiga verifikasi wajib diisi.'));return;
+      }
+      if(!window.confirm('Catat transaksi BANK terverifikasi ini ke ledger STAGING Offroad? BUKAN keuangan produksi.'))return;
+      var epoch=Math.floor(new Date(when.value).getTime()/1000);
+      submit.disabled=true;
+      google.script.run.withSuccessHandler(function(result){
+        $('message').textContent=result?.message||'Pembayaran sudah dicatat di ledger staging.';
+        show(row);
+      }).withFailureHandler(function(error){
+        submit.disabled=false;err(error);
+      }).offroadAdminV7RecordVerifiedPayment({
+        row:row.row,bookingId:row.bookingId,expectedVersion:row.version,
+        stage:stage,verifiedAmount:Number(amount.value),verifiedAt:epoch,
+        bankReference:reference.value.trim(),confirmedIdentity:one.checked,
+        confirmedBankCredit:two.checked,confirmedNoRefund:three.checked
+      });
+    });
+  }).withFailureHandler(err).offroadAdminV7PaymentSummary(row.row,row.bookingId);
+}
 function show(row){
   var parent=$('approvalDetail');parent.replaceChildren();parent.className='approvalGrid';
   el(parent,'h3',row.bookingId);
@@ -296,8 +362,11 @@ function show(row){
       var cell=el(dl,'div');el(cell,'dt',p[0]);el(cell,'dd',p[1]);
   });
   el(parent,'div','DP/LUNAS adalah pilihan pelanggan, bukan bukti transfer. Cek mutasi rekening Offroad sendiri. ACC booking tidak mengubah keuangan dan tidak menerbitkan poin.','notice');
+  if(state(row)==='ACC'){
+    renderBankLedger(row,parent);return;
+  }
   if(role!=='owner'){el(parent,'p','Akun Viewer hanya bisa membaca. Keputusan perlu Owner Offroad.');return;}
-  if(state(row)!=='MENUNGGU'){el(parent,'p','Booking sudah diputuskan. Revisi memerlukan prosedur koreksi dengan audit.');return;}
+  if(state(row)!=='MENUNGGU'){el(parent,'p','Booking sudah ditolak. Revisi memerlukan prosedur koreksi dengan audit.');return;}
   var form=el(parent,'form');form.className='approvalForm';
   var refLabel=el(form,'label','Referensi pengecekan rekening atau bukti internal');
   var ref=el(refLabel,'input');ref.type='text';ref.minLength=12;ref.maxLength=160;ref.required=true;ref.placeholder='Contoh: MUTASI-OFFROAD-20261112-01';
