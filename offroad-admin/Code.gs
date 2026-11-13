@@ -332,8 +332,16 @@ function offroadAdminV7Verify(input) {
       var status=String(row[9]||'').trim().toUpperCase();
       var paid=offroadAdminV7Currency_(row[11]);
       var outstanding=offroadAdminV7Currency_(row[10]);
-      if(!/^(LUNAS|CUSTOM)(?:\s|$|=)/.test(status)||paid===null||paid<=0||outstanding!==0)
-        throw Error('Pembayaran harus lunas dalam catatan Offroad dan bukti transfer diverifikasi Owner.');
+      if(!/^(DP|LUNAS|CUSTOM)(?:\s|$|=)/.test(status)||paid===null||paid<=0||
+         outstanding===null)
+        throw Error('Pembayaran harus lunas dan bukti transfer diverifikasi Owner.');
+      // Never equate a guest's declared DP/LUNAS (J:K:L) with bank receipts.
+      // The Offroad-only, immutable staging ledger must show every credit:
+      // first DP + separate final settlement, or one verified full payment.
+      var money=offroadAdminV7PaymentLedger_(user);
+      var settlement=offroadAdminV7LedgerSummary_(money,row,offroadAdminV7LedgerRows_(money.ledger));
+      if(!settlement.fullyPaid)
+        throw Error('Pembayaran belum lunas berdasarkan ledger bank Offroad, bukan pilihan tamu.');
       if(booking.units<1||booking.units>50)
         throw Error('Jumlah unit Offroad tidak valid.');
       if(booking.tripStatus==='SELESAI'&&booking.paymentVerified)
