@@ -312,7 +312,7 @@ function offroadAdminV7Verify(input) {
   try{
     var data=offroadAdminV7Sheet_(user),sheet=data.sheet;
     if(input.row>sheet.getLastRow())throw Error('Baris booking tidak ditemukan.');
-    var row=sheet.getRange(input.row,1,1,17).getValues()[0];
+    var row=sheet.getRange(input.row,1,1,23).getValues()[0];
     if(String(row[12]||'').trim()!==input.bookingId||
        offroadAdminV7Version_(row)!==input.expectedVersion)
       throw Error('Booking atau pembayaran telah berubah. Muat ulang dan periksa kembali.');
