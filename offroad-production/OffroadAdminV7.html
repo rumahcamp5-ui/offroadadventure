@@ -187,9 +187,9 @@ function detail(row){
  add(parent,'h3',row.bookingId);
  var dl=add(parent,'dl');
  [['Pemesan',row.name||'–'],['Tanggal',row.tripDate||'–'],['Paket',row.package||'–'],
-  ['Unit',String(row.units)],['Pembayaran (Offroad)',row.paymentStatus||'–'],
-  ['Diterima (Offroad)',currency(row.paidAmount)],
-  ['Sisa (Offroad)',currency(row.outstanding)],
+  ['Unit',String(row.units)],['Pilihan pembayaran tamu',row.paymentStatus||'–'],
+  ['Nominal rencana, bukan bukti bank',currency(row.paidAmount)],
+  ['Sisa berdasarkan formulir',currency(row.outstanding)],
   ['Status perjalanan',statusLabel(row)]].forEach(function(pair){var el=add(dl,'div');add(el,'dt',pair[0]);add(el,'dd',pair[1]);});
  add(parent,'div','Bukti transaksi diperiksa di pembukuan Offroad sendiri. Persetujuan di sini hanya menandai kolom O–Q, bukan memindahkan uang atau menerbitkan poin.','notice');
  if(role!=='owner'||!canWrite){add(parent,'p','Verifikasi perjalanan dikunci sampai audit keuangan dan izin Owner selesai.');return;}
