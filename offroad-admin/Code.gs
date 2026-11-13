@@ -192,6 +192,8 @@ function offroadAdminV7ApprovalRow_(row,number) {
     declaredRemaining:offroadAdminV7Currency_(row[10]),
     approval:offroadAdminV7ApprovalStatus_(row),
     bankVerifiedAmount:offroadAdminV7Currency_(row[21]),
+    bankVerifiedAt:row[22] instanceof Date&&isFinite(row[22].getTime())
+      ?Math.floor(row[22].getTime()/1000):null,
     version:offroadAdminV7Hash_(JSON.stringify(row.slice(1,23)))
   };
 }
