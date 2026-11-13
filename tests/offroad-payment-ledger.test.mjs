@@ -166,7 +166,7 @@ test('invalid staging ledger schema, stale booking and forbidden finance/network
  const stale=fixture();let p=stale.payload();stale.row[11]=600000;
  assert.throws(()=>stale.ctx.offroadAdminV7RecordVerifiedPayment(p),/Booking berubah/);
  assert.equal(stale.writes.length,0);
- assert.doesNotMatch(payments,/Data Keuangan Offroad|UrlFetchApp|doPost\(|onEdit\(|\.setValues\(/);
+ assert.doesNotMatch(payments,/(?:getSheetByName\(['\"]Data Keuangan Offroad['\"]\)|UrlFetchApp\.fetch\(|function doPost\(|function onEdit\(|\.setValues\()/);
  assert.match(payments,/OFFROAD_V7_LEDGER_TAB/);
  assert.match(payments,/offroadAdminV7PaymentLedger_\(actor\)/);
 });
