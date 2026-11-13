@@ -36,6 +36,14 @@
 6. Uji dengan akun Owner dan Viewer yang berbeda. Pastikan akun tidak dikenal ditolak, verifikasi baru hanya mengisi O:Q, tab audit muncul, sedangkan J–N dan laporan keuangan tidak berubah. Uji harga Custom, booking DP, jadwal belum selesai, pembatalan dan perubahan sel saat panel terbuka.
 7. Baru setelah itu lakukan uji adapter Membership terpisah dengan akun/sumber Offroad, secret HMAC di Script Properties yang berbeda, serta endpoint **staging**, bukan produksi. Tidak ada auto trigger, auto-award, atau merge keuangan.
 
+## Pembayaran dua tahap (sudah dikodekan di staging, belum produksi)
+
+- `OffroadPaymentsV7.gs` adalah file **Apps Script tambahan wajib** di project Admin Offroad yang baru. Setelah Owner menekan ACC, pembayaran pertama harus dicatat secara manual pada tab `OFFROAD V7 PAYMENT LEDGER`. Bagi booking `DP = ...`, tombol berikutnya mencatat satu pelunasan terpisah dengan tanggal dan referensi bank yang berbeda.
+- Ledger menghitung **total yang benar-benar terverifikasi** dan **sisa terverifikasi** tanpa mengubah nilai rencana pembayaran di J/K/L. Referensi bank disimpan sebagai SHA-256, transaksi ulang dari bukti identik ditangani idempoten, kredit ganda/nominal salah/akun Viewer ditolak. Pembatalan dan refund belum otomatis.
+- **Verifikasi perjalanan selesai** kini memerlukan `R=ACC` *serta* ledger Offroad menunjukkan **lunas terverifikasi**: satu pembayaran penuh atau dua pembayaran DP+pelunasan. Pilihan `LUNAS` dari browser saja tidak cukup.
+- Ini **tidak** otomatis menulis `Data Keuangan Offroad` maupun memberi poin Membership. Adapter Membership dan alur keuangan produksi masih membutuhkan rekonsiliasi tambahan, termasuk dukungan DP yang dilunasi dari ledger dan penonaktifan sinkronisasi lama setelah ditinjau.
+- Panduan setup file baru tersedia di [STAGING-SETUP.md](./STAGING-SETUP.md).
+
 ## Perlu diperhatikan sebelum lanjut deploy
 
 - Staging dummy sekarang mempunyai kolom A:W: A:N catatan asal, O:Q verifikasi perjalanan, **R:W status ACC/Reject booking**. Kode belum mengubah Sheet produksi.
