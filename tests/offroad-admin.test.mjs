@@ -202,6 +202,36 @@ test('DP, unpaid, bad proof, stale version and mismatched booking cannot be appr
  assert.throws(()=>s.ctx.offroadAdminV7Verify(r),/telah berubah/);
  assert.equal(s.writes.length,0);
 });
+test('DP booking can finish its actual trip after separate verified DP and settlement, with no finance writes',()=>{
+ const s=setup({payment:'DP = 350.000',paid:350000,balance:350000});
+ const row=s.ctx.offroadAdminV7ListApprovals().rows[0];
+ const firstTime=Math.floor(s.row[22].getTime()/1000);
+ const common={row:6,bookingId:row.bookingId,expectedVersion:row.version,
+   confirmedIdentity:true,confirmedBankCredit:true,confirmedNoRefund:true};
+ const first={...common,stage:'PERTAMA',verifiedAmount:350000,verifiedAt:firstTime,
+   bankReference:'bank-staging-dp-proof-0001'};
+ s.ctx.offroadAdminV7RecordVerifiedPayment(first);
+ assert.throws(()=>s.ctx.offroadAdminV7Verify(request(s)),/belum lunas berdasarkan ledger/);
+ s.ctx.offroadAdminV7RecordVerifiedPayment({
+  ...common,stage:'PELUNASAN',verifiedAmount:350000,verifiedAt:firstTime+120,
+  bankReference:'bank-staging-pelunasan-0002'
+ });
+ const totals=s.ctx.offroadAdminV7PaymentSummary(6,row.bookingId);
+ assert.equal(totals.payment.paidVerified,700000);
+ assert.equal(totals.payment.outstandingVerified,0);
+ const finished=s.ctx.offroadAdminV7Verify(request(s));
+ assert.equal(finished.ok,true);
+ assert.equal(finished.pointsIssued,false);
+ assert.equal(s.row[14],'SELESAI');
+ assert.equal(s.row[10],350000,'the original guest-planned balance stays unchanged');
+ assert.equal(s.row[11],350000,'the original guest-planned deposit stays unchanged');
+ assert.equal(s.writes.filter(w=>w.tab==='payment-ledger').length,2);
+ assert.equal(s.writes.filter(w=>w.tab==='booking').length,1);
+ assert.equal(s.writes.filter(w=>w.tab==='booking')[0].col,15);
+ assert.equal(s.writes.filter(w=>w.tab==='booking')[0].numCols,3);
+ assert.equal(s.writes.filter(w=>w.tab==='finance').length,0);
+});
+
 test('explicit cancellation is logged without touching a payment, issuing points, or changing other booking columns',()=>{
  const s=setup({payment:'DP',balance:50000,paid:100000});
  const before=s.row.slice();
