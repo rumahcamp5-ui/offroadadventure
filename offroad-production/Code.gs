@@ -21,7 +21,7 @@ var OFFROAD_V7_BOOKING_TAB = 'Formulir Offroad';
 var OFFROAD_V7_AUDIT_TAB = 'OFFROAD V7 AUDIT';
 var OFFROAD_V7_FIRST_ROW = 6;
 var OFFROAD_V7_MAX_ROW = 1006;
-var OFFROAD_V7_PRODUCTION_SPREADSHEET_ID = '17-0kSIPJzfqBs3Y8G4jl5yaV8vAiyhyyulqceV6uGSc';
+var OFFROAD_V7_PRODUCTION_ID_FINGERPRINT = 'c27989dbc36d5ce2b749d56eae796d143531cc0e8b834c4c602ed95910452056';
 var OFFROAD_V7_PRODUCTION_TITLE = 'OFFROAD';
 
 function offroadAdminV7Emails_(raw) {
@@ -46,8 +46,9 @@ function offroadAdminV7Sheet_(identity) {
   if(identity.props.getProperty('OFFROAD_ADMIN_V7_MODE')!=='production')
     throw Error('Admin Offroad online hanya dapat dibuka di mode production.');
   var id=identity.props.getProperty('OFFROAD_ADMIN_V7_SPREADSHEET_ID');
-  if(id!==OFFROAD_V7_PRODUCTION_SPREADSHEET_ID)
-    throw Error('ID spreadsheet Offroad produksi tidak cocok.');
+  if(!/^[A-Za-z0-9_-]{20,120}$/.test(String(id||''))||
+     offroadAdminV7Hash_(id)!==OFFROAD_V7_PRODUCTION_ID_FINGERPRINT)
+    throw Error('Identitas spreadsheet Offroad produksi tidak cocok.');
   var file=SpreadsheetApp.openById(id);
   if(file.getName()!==OFFROAD_V7_PRODUCTION_TITLE)
     throw Error('Nama spreadsheet Offroad produksi tidak cocok.');
