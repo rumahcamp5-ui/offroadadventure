@@ -256,7 +256,12 @@ function findRecentDuplicate_(sheet, item) {
     const time = r[0] instanceof Date ? r[0].getTime() : NaN;
     if (!Number.isFinite(time) || time > now + 60000 || now - time > DUPLICATE_WINDOW_MS) continue;
     if (normalize(r[1]) !== normalize(item.name)) continue;
-    if (String(r[2] || '').replace(/[\s-]/g, '') !== item.safePhone) continue;
+    // Compare canonical phones without changing historical stored cells.
+    const storedPhone = String(r[2] || '').trim();
+    const legacyPhone = /^(?:08|\+|00)/.test(storedPhone) ? storedPhone : '+' + storedPhone;
+    try {
+      if (normalizeOffroadWhatsapp(legacyPhone) !== item.safePhone) continue;
+    } catch (_) { continue; }
     if (dateKeyFromCell_(r[3]) !== item.dateText) continue;
     if (Number(r[5]) !== item.jumlahUnit) continue;
     if (normalize(r[6]) !== normalize(item.packageSummary)) continue;
@@ -537,4 +542,3 @@ function cekKoneksiAdminOffroadV1(){
   console.log('Bridge Offroad siap: baca booking + pemasukan hanya setelah pembayaran diverifikasi.');
   return 'OFFROAD_ADMIN_BRIDGE_READY';
 }
-
