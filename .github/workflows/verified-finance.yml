@@ -1,0 +1,16 @@
+name: Verified finance guards
+on:
+  pull_request:
+  push:
+    branches: ['feature/verified-finance-*']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test whatsapp.test.cjs member-booking-link.test.cjs financial-guard.test.cjs
