@@ -758,6 +758,13 @@ function offroadAdminPostPayment_(ss,payload) {
   if(ScriptApp.getProjectTriggers().some(t=>t.getHandlerFunction()==='syncKeuanganOffroadOtomatis'))
     throw Error('Nonaktifkan trigger syncKeuanganOffroadOtomatis lama sebelum menulis keuangan.');
   const bookingRow=findExistingId_(bs,id);if(!bookingRow)throw Error('Booking ID tidak ditemukan di Sheets.');
+
+  // BEGIN verified finance go-live guard
+  const financeStart=Number(PropertiesService.getScriptProperties().getProperty('OFFROAD_ADMIN_FINANCE_START_AT')||'0');
+  const bookedAt=bs.getRange(bookingRow,2).getValue();
+  if(!Number.isSafeInteger(financeStart)||financeStart<=0||!(bookedAt instanceof Date)||!isFinite(bookedAt.getTime())||bookedAt.getTime()<financeStart*1000)
+    throw Error('Booking sebelum aktivasi keuangan harus direkonsiliasi manual; tidak diimpor ulang.');
+  // END verified finance go-live guard
   const header=String(fs.getRange('M6').getDisplayValue()).trim();
   if(header && header!=='ID Pembayaran')throw Error('M6 sudah dipakai untuk data lain.');
   const marker='OFFROADPAY|'+id+'|'+paymentId;
@@ -777,6 +784,16 @@ function offroadAdminPostPayment_(ss,payload) {
         return {status:'OK',duplicate:true,row};
       if(old.some(x=>x!==''&&x!==null))throw Error('ID pembayaran sama tetapi data berbeda.');
     }
+
+    // BEGIN verified finance reference and total guards
+    if(data.some(function(r,i){return String(markers[i][0]||'')!==marker&&String(r[1]||'').indexOf(reference.trim())!==-1;}))
+      throw Error('Referensi bank sudah ditemukan di keuangan. Rekonsiliasi transaksi yang ada sebelum melanjutkan.');
+    const booked=bs.getRange(bookingRow,3,1,10).getValues()[0];
+    const totalPrice=offroadAdminNumber_(booked[8])+offroadAdminNumber_(booked[9]);
+    const verifiedTotal=data.reduce(function(n,r,i){return String(markers[i][0]||'').indexOf('OFFROADPAY|'+id+'|')===0?n+offroadAdminNumber_(r[3]):n;},0);
+    if(!Number.isSafeInteger(totalPrice)||totalPrice<=0||!Number.isSafeInteger(verifiedTotal)||verifiedTotal+amount>totalPrice)
+      throw Error('Total pembayaran melampaui harga sumber. Periksa bukti dan nominal.');
+    // END verified finance reference and total guards
     if(!duplicate){
       for(let i=0;i<count;i++){
         if(markers[i][0])continue;
